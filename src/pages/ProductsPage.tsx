@@ -86,25 +86,10 @@ export function ProductsPage() {
     }
   };
 
-  const handleSearchAndFilter = async () => {
-    try {
-      const params: productService.SortAndSearchParams = {
-        searching: searchInput || null,
-        category: selectedCategory || null,
-        minPrice: minPrice ? parseFloat(minPrice) : null,
-        maxPrice: maxPrice ? parseFloat(maxPrice) : null,
-        direction: sortDirection || null,
-      };
-
-      const response = await productService.sortAndSearchProduct(params);
-      if (response.data?.result) {
-        setProducts(response.data.result);
-        toast.success("Đã lọc sản phẩm thành công");
-      }
-    } catch (error) {
-      console.error("Error searching/filtering products:", error);
-      toast.error("Không thể lọc sản phẩm");
-    }
+  const handleSearchAndFilter = () => {
+    // Local filtering is already handled by filteredProducts variable
+    setShowFilters(false);
+    toast.success("Đã áp dụng bộ lọc");
   };
 
   const handleResetFilters = () => {
@@ -282,10 +267,105 @@ export function ProductsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-muted/30">
       <Navigation />
 
-      <div className="pt-24 px-6 max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-6 pt-10 pb-20 animate-fade-in">
+        {/* HEADER & SEARCH */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+          <div>
+            <h1 className="text-4xl font-bold text-primary mb-2">Our Products</h1>
+            <p className="text-muted-foreground">Quality items for your everyday needs</p>
+          </div>
+
+          <div className="flex gap-4 flex-1 max-w-xl">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+              <input
+                type="text"
+                placeholder="Search for products..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all shadow-sm"
+              />
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-3 rounded-xl border border-border transition-all ${
+                showFilters ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+              }`}
+            >
+              <SlidersHorizontal size={20} />
+            </motion.button>
+          </div>
+        </div>
+
+        {/* FILTERS */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden mb-12"
+            >
+              <div className="bg-background rounded-2xl border border-border p-8 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-primary uppercase tracking-widest">Category</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full p-3 bg-muted/30 border border-border rounded-xl outline-none focus:border-primary transition-all cursor-pointer"
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-primary uppercase tracking-widest">Min Price</label>
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                    className="w-full p-3 bg-muted/30 border border-border rounded-xl outline-none focus:border-primary transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-primary uppercase tracking-widest">Max Price</label>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                    className="w-full p-3 bg-muted/30 border border-border rounded-xl outline-none focus:border-primary transition-all"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    onClick={() => {
+                      setSearchInput("");
+                      setSelectedCategory("");
+                      setMinPrice("");
+                      setMaxPrice("");
+                    }}
+                    className="w-full py-3 text-primary font-bold hover:underline transition-all"
+                  >
+                    Reset Filters
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* FEATURED PRODUCT */}
         {featuredProduct && (
           <motion.section
@@ -305,303 +385,211 @@ export function ProductsPage() {
                   setSelectedProduct(featuredProduct);
                 }, 400);
               }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center bg-gray-50 rounded-3xl p-8 cursor-pointer card-hover"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center bg-background border border-border rounded-[2.5rem] p-10 cursor-pointer shadow-xl shadow-primary/5 hover:shadow-2xl transition-all"
             >
-              <div className="aspect-square rounded-2xl overflow-hidden">
+              <div className="aspect-square rounded-3xl overflow-hidden border border-border">
                 <ImageWithFallback
                   src={getProductImage(featuredProduct)}
-                  alt={featuredProduct.productName}
-                  className="w-full h-full object-cover"
+                  alt={featuredProduct.name}
+                  className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                 />
               </div>
 
               <div>
-                <span className="inline-block mb-3 px-4 py-1 text-sm bg-black text-white rounded-full">
-                  Featured Product
+                <span className="inline-block mb-4 px-4 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded-full uppercase tracking-widest shadow-lg shadow-primary/20">
+                  Featured Choice
                 </span>
 
-                <h2 className="text-4xl font-bold mb-4">
-                  {featuredProduct.productName}
+                <h2 className="text-5xl font-bold text-primary mb-4 leading-tight">
+                  {featuredProduct.name}
                 </h2>
 
-                <p className="text-gray-600 mb-6">
-                  {featuredProduct.description}
+                <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
+                  Barcode: {featuredProduct.barcode}
                 </p>
 
-                <p className="text-3xl font-semibold mb-8">
-                  ${featuredProduct.price.toLocaleString()}
+                <p className="text-4xl font-bold text-primary mb-10">
+                  {featuredProduct.price.toLocaleString()} VND
                 </p>
 
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAddToCart(featuredProduct.id);
                   }}
-                  className="btn-base btn-hover btn-press px-8 py-4 rounded-xl bg-black text-white cursor-pointer"
+                  className="px-10 py-5 rounded-2xl bg-primary text-primary-foreground font-bold text-lg shadow-xl shadow-primary/10 hover:bg-primary/90 transition-all"
                 >
-                  Add to Cart
-                </button>
+                  Add to Shopping Bag
+                </motion.button>
               </div>
             </div>
           </motion.section>
         )}
 
-        {/* FILTER SECTION */}
-        <motion.section
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="mb-8"
-        >
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <SlidersHorizontal className="w-5 h-5" />
-                Bộ Lọc & Tìm Kiếm
-              </h3>
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="text-sm text-blue-600 hover:text-blue-700"
-              >
-                {showFilters ? "Ẩn" : "Hiện"}
-              </button>
-            </div>
-
-            <AnimatePresence>
-              {showFilters && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-4 pt-4">
-                    {/* Search Input */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tìm kiếm
-                      </label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="text"
-                          value={searchInput}
-                          onChange={(e) => setSearchInput(e.target.value)}
-                          placeholder="Nhập tên sản phẩm..."
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {/* Category Select */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Danh mục
-                        </label>
-                        <select
-                          value={selectedCategory}
-                          onChange={(e) => setSelectedCategory(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                        >
-                          <option value="">Tất cả danh mục</option>
-                          {categories.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                              {cat.categoryName}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Min Price */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Giá tối thiểu
-                        </label>
-                        <input
-                          type="number"
-                          value={minPrice}
-                          onChange={(e) => setMinPrice(e.target.value)}
-                          placeholder="0"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                        />
-                      </div>
-
-                      {/* Max Price */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Giá tối đa
-                        </label>
-                        <input
-                          type="number"
-                          value={maxPrice}
-                          onChange={(e) => setMaxPrice(e.target.value)}
-                          placeholder="999999"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                        />
-                      </div>
-
-                      {/* Sort Direction */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Sắp xếp theo giá
-                        </label>
-                        <select
-                          value={sortDirection}
-                          onChange={(e) => setSortDirection(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
-                        >
-                          <option value="">Mặc định</option>
-                          <option value="asc">Tăng dần</option>
-                          <option value="desc">Giảm dần</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        onClick={handleSearchAndFilter}
-                        className="flex-1 bg-black text-white py-2 px-6 rounded-lg hover:bg-gray-800 transition-colors font-medium"
-                      >
-                        Áp dụng lọc
-                      </button>
-                      <button
-                        onClick={handleResetFilters}
-                        className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                      >
-                        Đặt lại
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.section>
-
-        {/* PRODUCTS GRID */}
+        {/* PRODUCT GRID */}
         <div
           ref={productsRef}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
         >
           {filteredProducts.map((product) => (
-            <div
+            <motion.div
               key={product.id}
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -8 }}
+              className="group bg-background rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer"
               onClick={() => setSelectedProduct(product)}
-              className="card-hover animate-slide-up cursor-pointer flex flex-col h-full"
             >
-              <div className="aspect-square bg-gray-100 rounded-3xl overflow-hidden">
+              <div className="aspect-[4/5] overflow-hidden relative">
                 <ImageWithFallback
                   src={getProductImage(product)}
-                  alt={product.productName}
-                  className="w-full h-full object-cover"
+                  alt={product.name}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
+                <div className="absolute top-3 left-3">
+                  <span className="px-3 py-1 bg-background/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-wider text-primary border border-border">
+                    {product.categoryName}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex-1 py-4">
-                <h3 className="text-xl font-semibold group-hover:text-blue-600 transition-colors">
+              <div className="p-6">
+                <h3 className="font-bold text-lg mb-1 text-primary group-hover:text-primary/80 transition-colors line-clamp-1">
                   {product.name}
                 </h3>
-                <p className="text-gray-500 text-sm mb-4 line-clamp-2">
+                <p className="text-muted-foreground text-xs mb-4 uppercase tracking-tighter">
                   {product.barcode}
                 </p>
-                <p className="text-lg font-medium mt-1">
-                  ${product.price.toLocaleString()}
-                </p>
-              </div>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAddToCart(product.id);
-                }}
-                className="btn-base btn-hover btn-press w-full py-3 rounded-xl bg-black text-white flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                Add to Cart
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* PRODUCT POPUP */}
-      <AnimatePresence>
-        {selectedProduct && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedProduct(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", damping: 25 }}
-              className="bg-white rounded-3xl max-w-3xl w-full mx-4 p-6 relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => setSelectedProduct(null)}
-                className="absolute top-4 right-4 hover:text-red-500"
-              >
-                <X />
-              </button>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden">
-                  <ImageWithFallback
-                    src={getProductImage(selectedProduct)}
-                    alt={selectedProduct.productName}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                <div>
-                  <h2 className="text-2xl font-bold mb-2">
-                    {selectedProduct.productName}
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    {selectedProduct.description}
-                  </p>
-                  <p className="text-2xl font-semibold mb-6">
-                    ${selectedProduct.price.toLocaleString()}
-                  </p>
-
-                  <button
-                    onClick={() => {
-                      handleAddToCart(selectedProduct.id);
-                      setSelectedProduct(null);
+                <div className="flex items-center justify-between mt-auto">
+                  <span className="text-xl font-bold text-primary">
+                    {product.price.toLocaleString()} VND
+                  </span>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="p-3 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToCart(product.id);
                     }}
-                    className="btn-base btn-hover btn-press w-full py-4 bg-black text-white rounded-xl cursor-pointer"
                   >
-                    Add to Cart
-                  </button>
+                    <Plus size={20} />
+                  </motion.button>
                 </div>
               </div>
             </motion.div>
-          </motion.div>
+          ))}
+        </div>
+
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-40">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-muted rounded-full mb-6">
+              <Search size={32} className="text-muted-foreground" />
+            </div>
+            <h3 className="text-2xl font-bold text-primary mb-2">No products found</h3>
+            <p className="text-muted-foreground">Try adjusting your search or filters to find what you're looking for.</p>
+          </div>
+        )}
+      </div>
+
+      {/* PRODUCT DETAIL MODAL */}
+      <AnimatePresence>
+        {selectedProduct && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedProduct(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 40 }}
+              className="relative bg-background rounded-[2rem] w-full max-w-4xl shadow-2xl overflow-hidden"
+            >
+              <button
+                onClick={() => setSelectedProduct(null)}
+                className="absolute top-6 right-6 p-2 bg-background/80 backdrop-blur-md rounded-full border border-border text-primary z-10 hover:scale-110 transition-transform"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="flex flex-col md:flex-row">
+                <div className="md:w-1/2 aspect-square">
+                  <ImageWithFallback
+                    src={getProductImage(selectedProduct)}
+                    alt={selectedProduct.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="md:w-1/2 p-10 flex flex-col">
+                  <div className="mb-auto">
+                    <span className="px-3 py-1 bg-primary/5 text-primary rounded-full text-xs font-bold uppercase tracking-widest border border-primary/10">
+                      {selectedProduct.categoryName}
+                    </span>
+                    <h2 className="text-4xl font-bold text-primary mt-4 mb-2 leading-tight">
+                      {selectedProduct.name}
+                    </h2>
+                    <p className="text-muted-foreground font-mono text-sm mb-8">
+                      {selectedProduct.barcode}
+                    </p>
+                    
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between py-4 border-y border-border">
+                        <span className="text-muted-foreground">Price per unit</span>
+                        <span className="text-3xl font-bold text-primary">
+                          {selectedProduct.price.toLocaleString()} VND
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Stock Status</span>
+                        <span className={`font-bold ${selectedProduct.quantity > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                          {selectedProduct.quantity > 0 ? `${selectedProduct.quantity} items available` : 'Out of stock'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-12 flex gap-4">
+                    <button
+                      disabled={selectedProduct.quantity <= 0}
+                      onClick={() => handleAddToCart(selectedProduct.id)}
+                      className="flex-1 py-5 bg-primary text-primary-foreground rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all disabled:opacity-50"
+                    >
+                      Add to Shopping Cart
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
       {/* FLOATING CART BUTTON */}
       <motion.button
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
         whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
         onClick={() => setIsCartOpen(true)}
-        className="fixed bottom-20 right-6 z-40 bg-black text-white rounded-full p-4 shadow-lg cursor-pointer"
+        className="fixed bottom-8 right-8 z-40 bg-primary text-primary-foreground rounded-full p-5 shadow-2xl shadow-primary/40 cursor-pointer"
       >
         <div className="relative">
-          <ShoppingCart className="w-6 h-6" />
+          <ShoppingCart className="w-7 h-7" />
           {cart && cart.totalItems > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            <motion.span 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute -top-3 -right-3 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-6 h-6 flex items-center justify-center ring-2 ring-background"
+            >
               {cart.totalItems}
-            </span>
+            </motion.span>
           )}
         </div>
       </motion.button>
@@ -609,158 +597,137 @@ export function ProductsPage() {
       {/* CART SIDEBAR */}
       <AnimatePresence>
         {isCartOpen && (
-          <motion.div
-            className="fixed inset-0 z-[9999] bg-black/40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsCartOpen(false)}
-          >
+          <div className="fixed inset-0 z-[100]">
+            <motion.div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCartOpen(false)}
+            />
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25 }}
-              className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col"
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="absolute right-0 top-0 h-full w-full max-w-md bg-background shadow-2xl flex flex-col border-l border-border"
               onClick={(e) => e.stopPropagation()}
             >
               {/* CART HEADER */}
-              <div className="flex justify-between items-center p-6 border-b">
-                <h2 className="text-xl font-semibold">
-                  Giỏ Hàng ({cart?.totalQuantity || 0})
+              <div className="flex justify-between items-center p-8 border-b border-border bg-muted/10">
+                <h2 className="text-2xl font-bold text-primary flex items-center gap-3">
+                  <ShoppingCart size={24} />
+                  My Cart
                 </h2>
                 <button 
                   onClick={() => setIsCartOpen(false)}
-                  className="hover:text-red-500 transition-colors"
+                  className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-primary"
                 >
-                  <X className="w-6 h-6" />
+                  <X size={24} />
                 </button>
               </div>
 
               {/* CART ITEMS */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
                 {cart && cart.items && cart.items.length > 0 ? (
                   cart.items.map((item) => {
                     const product = getProductById(item.productId);
                     return (
-                      <div key={item.productId} className="flex gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div key={item.productId} className="flex gap-4 p-4 bg-muted/20 rounded-2xl border border-border group hover:border-primary/20 transition-all">
                         {product && (
-                          <div className="w-20 h-20 bg-white rounded-lg overflow-hidden flex-shrink-0">
+                          <div className="w-24 h-24 bg-background rounded-xl overflow-hidden border border-border flex-shrink-0">
                             <ImageWithFallback
                               src={getProductImage(product)}
-                              alt={product.productName}
+                              alt={product.name}
                               className="w-full h-full object-cover"
                             />
                           </div>
                         )}
 
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
-                            {product?.productName || "Unknown Product"}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            ${item.price.toLocaleString()}
-                          </p>
-
-                          <div className="flex items-center gap-3 mt-2">
-                            <button 
-                              onClick={() => handleIncrementDecrement(item.productId, false)}
-                              className="w-7 h-7 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
-                            >
-                              <Minus size={14} />
-                            </button>
-                            
-                            {editingQuantity === item.productId ? (
-                              <input
-                                type="number"
-                                value={tempQuantity}
-                                onChange={(e) => setTempQuantity(e.target.value)}
-                                onKeyDown={(e) => handleQuantityKeyDown(e, item.productId)}
-                                onBlur={() => {
-                                  const newQuantity = parseInt(tempQuantity);
-                                  if (!isNaN(newQuantity) && newQuantity > 0) {
-                                    handleSetQuantity(item.productId, newQuantity);
-                                  }
-                                  setEditingQuantity(null);
-                                }}
-                                autoFocus
-                                className="w-12 text-center border rounded px-1 py-0.5"
-                              />
-                            ) : (
-                              <span 
-                                onDoubleClick={() => handleQuantityDoubleClick(item.productId, item.quantity)}
-                                className="w-12 text-center font-medium cursor-pointer hover:bg-gray-100 rounded px-2 py-1"
-                                title="Double click để chỉnh sửa"
-                              >
-                                {item.quantity}
-                              </span>
-                            )}
-                            
-                            <button 
-                              onClick={() => handleIncrementDecrement(item.productId, true)}
-                              className="w-7 h-7 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
-                            >
-                              <Plus size={14} />
-                            </button>
+                        <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                          <div>
+                            <p className="font-bold text-primary truncate text-lg">
+                              {product?.name || "Product"}
+                            </p>
+                            <p className="text-sm text-muted-foreground font-medium">
+                              {item.price.toLocaleString()} VND
+                            </p>
                           </div>
 
-                          <p className="text-sm font-semibold mt-2">
-                            Subtotal: ${item.subtotal.toLocaleString()}
-                          </p>
-                        </div>
+                          <div className="flex items-center justify-between mt-4">
+                            <div className="flex items-center gap-3 bg-background border border-border rounded-lg p-1">
+                              <button 
+                                onClick={() => handleIncrementDecrement(item.productId, false)}
+                                className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center transition-colors text-primary"
+                              >
+                                <Minus size={14} />
+                              </button>
+                              
+                              <span className="w-8 text-center font-bold text-sm">
+                                {item.quantity}
+                              </span>
+                              
+                              <button 
+                                onClick={() => handleIncrementDecrement(item.productId, true)}
+                                className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center transition-colors text-primary"
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
 
-                        <button 
-                          onClick={() => handleRemoveItem(item.productId)}
-                          className="text-red-500 hover:text-red-700 transition-colors flex-shrink-0"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                            <button 
+                              onClick={() => handleRemoveItem(item.productId)}
+                              className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                    <p>Giỏ hàng trống</p>
+                  <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-10">
+                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
+                      <ShoppingCart size={32} className="opacity-20" />
+                    </div>
+                    <p className="text-lg font-medium">Your cart is empty</p>
+                    <button 
+                      onClick={() => setIsCartOpen(false)}
+                      className="mt-4 text-primary font-bold hover:underline"
+                    >
+                      Continue Shopping
+                    </button>
                   </div>
                 )}
               </div>
 
               {/* CART FOOTER */}
               {cart && cart.items && cart.items.length > 0 && (
-                <div className="border-t p-6 space-y-4 bg-gray-50">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Tổng số lượng:</span>
-                      <span className="font-medium">{cart.totalQuantity}</span>
+                <div className="border-t border-border p-8 space-y-6 bg-muted/10">
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Total Items</span>
+                      <span className="font-bold text-primary">{cart.totalQuantity}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Tổng sản phẩm:</span>
-                      <span className="font-medium">{cart.totalItems}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                      <span>Tổng tiền:</span>
-                      <span className="text-black">${cart.totalAmount.toLocaleString()}</span>
+                    <div className="flex justify-between text-2xl font-bold pt-4 border-t border-border">
+                      <span className="text-primary">Total</span>
+                      <span className="text-primary">{cart.totalAmount.toLocaleString()} VND</span>
                     </div>
                   </div>
 
-                  <button 
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={handleCheckout}
-                    className="btn-base btn-hover btn-press w-full py-4 bg-black text-white rounded-xl font-semibold"
+                    className="w-full py-5 bg-primary text-primary-foreground rounded-2xl font-bold text-xl shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all"
                   >
-                    Checkout
-                  </button>
-
-                  <button 
-                    onClick={handleClearCart}
-                    className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-medium hover:bg-red-100 transition-colors"
-                  >
-                    Xóa Toàn Bộ Giỏ Hàng
-                  </button>
+                    Proceed to Checkout
+                  </motion.button>
                 </div>
               )}
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

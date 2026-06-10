@@ -66,7 +66,7 @@ export function SignUp() {
               transition={{ delay: 0.15 }}
               className="text-center mb-10"
             >
-              <h1 className="text-4xl mb-3 font-semibold">
+              <h1 className="text-4xl mb-3 font-semibold text-primary">
                 Create Account
               </h1>
             </motion.div>

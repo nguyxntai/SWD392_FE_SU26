@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import LandingPage from "./pages/LandingPage";
 import { ProductsPage } from "./pages/ProductsPage";
 import Login from "./pages/Login";
 import { SignUp } from "./pages/SignUp";
@@ -19,7 +18,7 @@ export default function App() {
       <Toaster position="top-right" />
       <Routes>
         {/* PUBLIC */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />

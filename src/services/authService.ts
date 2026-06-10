@@ -80,6 +80,7 @@ export async function logout(): Promise<void> {
   } finally {
     // clear local storage
     localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("role");
   }
 }

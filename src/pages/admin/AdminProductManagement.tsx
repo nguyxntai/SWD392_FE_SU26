@@ -55,8 +55,6 @@ export function AdminProductManagement() {
     active: true,
   });
 
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-
   /* =====================
      FETCH DATA
   ====================== */
@@ -150,7 +148,6 @@ export function AdminProductManagement() {
 
   const closeFormModal = () => {
     setIsFormModalOpen(false);
-    setImageFiles([]);
     setEditingProduct(null);
   };
 
@@ -206,7 +203,7 @@ export function AdminProductManagement() {
   };
 
   const handleDelete = async (product: Product) => {
-    if (!confirm(`Are you sure you want to delete "${product.productName}"?`)) {
+    if (!confirm(`Are you sure you want to delete "${product.name}"?`)) {
       return;
     }
 
@@ -218,20 +215,6 @@ export function AdminProductManagement() {
       console.error('Error deleting product:', error);
       toast.error(error.response?.data?.message || 'Không thể xóa sản phẩm');
     }
-  };
-
-  const handleImageUpload = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const fileArray = Array.from(files);
-    setImageFiles(prev => [...prev, ...fileArray]);
-  };
-
-  const removeImage = (index: number) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   return (

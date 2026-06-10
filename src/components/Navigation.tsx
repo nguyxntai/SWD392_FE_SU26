@@ -1,10 +1,9 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   ShoppingCart,
   User,
   LogOut,
   Search,
-  Store,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,7 +35,7 @@ export function Navigation() {
     } catch (err) {
       console.warn("Logout API failed", err);
     } finally {
-      navigate("/");
+      navigate("/login");
     }
   };
 
@@ -56,131 +55,78 @@ export function Navigation() {
       : "text-muted-foreground";
   };
 
+  const handleLogoClick = () => {
+    if (!isLoggedIn) return "/login";
+    if (role === "ADMIN" || role === "MANAGER") return "/admin/products";
+    if (role === "CASHIER") return "/pos";
+    return "/products";
+  };
+
   return (
     <>
-      {/* HEADER */}
-      <motion.header
-        initial={{ y: -60, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="sticky top-0 z-50 w-full border-b bg-background"
-      >
-        <div className="container mx-auto h-16 px-4 flex items-center">
-          {/* LEFT */}
-          <div className="flex-1 flex items-center gap-6">
-            {["/", "/products"].map((path) => {
-              const isCurrent =
-                path === "/"
-                  ? location.pathname === "/"
-                  : location.pathname.startsWith(path);
-
-              return (
-                <motion.button
-                  key={path}
-                  onClick={() => navigate(path)}
-                  whileHover={{ y: -2 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                  className={`relative hover:text-primary ${isActive(path)}`}
-                >
-                  {path === "/" ? "Home" : "Products"}
-
-                  {isCurrent && (
-                    <motion.span
-                      layoutId="nav-underline"
-                      className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary"
-                    />
-                  )}
-                </motion.button>
-              );
-            })}
-
-            {isAdmin && (
-              <motion.button
-                onClick={() => navigate("/admin/products")}
-                whileHover={{ y: -2 }}
-                className={`relative hover:text-primary ${isActive("/admin")}`}
-              >
-                Admin
-
-                {location.pathname.startsWith("/admin") && (
-                  <motion.span
-                    layoutId="nav-underline"
-                    className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary"
-                  />
-                )}
-              </motion.button>
-            )}
+    <nav className="fixed top-0 left-0 right-0 z-[100] bg-background/80 backdrop-blur-md border-b border-border transition-all duration-300">
+      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        {/* LOGO */}
+        <Link to={handleLogoClick()} className="flex items-center gap-2 group">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground group-hover:scale-110 transition-transform">
+            <span className="text-xl font-black">S</span>
           </div>
+          <span className="text-2xl font-black tracking-tighter text-primary">STUURDY</span>
+        </Link>
 
-          {/* CENTER – BRAND */}
-          <motion.div
-            onClick={() => navigate("/")}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="shrink-0 flex items-center gap-2 cursor-pointer select-none"
-          >
-            <Store className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold tracking-wide">
-              Instastore
-            </span>
-          </motion.div>
-
-          {/* RIGHT */}
-          <div className="flex-1 flex items-center justify-end gap-4">
-            <motion.button
-              whileHover={{ scale: 1.15 }}
-              onClick={() => setShowSearch((prev) => !prev)}
-              className="hover:text-primary"
-            >
-              <Search className="w-5 h-5" />
-            </motion.button>
-
-            {isLoggedIn && role === ROLE.PUBLIC && (
-              <motion.button
-                whileHover={{ scale: 1.15 }}
-                onClick={() => navigate("/cart")}
-                className="hover:text-primary"
+        {/* LINKS */}
+        <div className="hidden md:flex items-center gap-8">
+          {[
+            { name: "Shop", path: "/products", roles: ["ANY"] },
+            { name: "POS", path: "/pos", roles: ["ADMIN", "MANAGER", "CASHIER"] },
+            { name: "Admin", path: "/admin/products", roles: ["ADMIN", "MANAGER"] },
+          ]
+            .filter((link) => {
+              if (!link.roles || link.roles.includes("ANY")) return true;
+              return role && link.roles.includes(role);
+            })
+            .map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`text-sm font-bold uppercase tracking-widest transition-colors ${isActive(
+                  link.path
+                )}`}
               >
-                <ShoppingCart className="w-5 h-5" />
-              </motion.button>
-            )}
-
-            {!isLoggedIn ? (
-              <div className="flex items-center gap-3">
-                <motion.button
-                  whileHover={{ y: -2 }}
-                  onClick={() => navigate("/login")}
-                  className="flex items-center gap-2 text-sm font-medium hover:text-primary"
-                >
-                  <User className="w-5 h-5" />
-                  Login
-                </motion.button>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate("/signup")}
-                  className="px-4 py-2 text-sm font-medium rounded-md 
-                             bg-primary text-primary-foreground
-                             hover:bg-primary/90"
-                >
-                  Sign Up
-                </motion.button>
-              </div>
-            ) : (
-              <motion.button
-                whileHover={{ y: -2 }}
-                onClick={() => setShowLogoutConfirm(true)}
-                className="flex items-center gap-2 hover:text-primary"
-              >
-                <LogOut className="w-5 h-5" />
-                Logout
-              </motion.button>
-
-            )}
-          </div>
+                {link.name}
+              </Link>
+            ))}
         </div>
-      </motion.header>
+
+        {/* AUTH */}
+        <div className="flex items-center gap-4">
+          {!isLoggedIn ? (
+            <>
+              <Link
+                to="/login"
+                className="text-sm font-bold uppercase tracking-widest px-6 py-2 hover:bg-muted rounded-xl transition-all"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="text-sm font-bold uppercase tracking-widest px-6 py-2 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/10 hover:bg-primary/90 transition-all"
+              >
+                Sign Up
+              </Link>
+            </>
+          ) : (
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest px-6 py-2 text-destructive hover:bg-destructive/10 rounded-xl transition-all"
+            >
+              <LogOut size={18} />
+              Logout
+            </button>
+          )}
+        </div>
+      </div>
+    </nav>
 
       {/* SEARCH DROPDOWN */}
       <AnimatePresence>

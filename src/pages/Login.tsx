@@ -30,7 +30,14 @@ export default function Login() {
       // clear guest data if any
       localStorage.removeItem("guest_cart");
 
-      navigate("/");
+      const role = localStorage.getItem("role");
+      if (role === "ADMIN" || role === "MANAGER") {
+        navigate("/admin/products");
+      } else if (role === "CASHIER") {
+        navigate("/pos");
+      } else {
+        navigate("/products");
+      }
     } catch (err: any) {
       console.error("Login failed:", err);
       setError(err?.message || "Login failed");
@@ -64,7 +71,7 @@ export default function Login() {
               transition={{ delay: 0.15 }}
               className="text-center mb-10"
             >
-              <h1 className="text-4xl mb-3 font-semibold">Admin Login</h1>
+              <h1 className="text-4xl mb-3 font-semibold text-primary">Sign In</h1>
             </motion.div>
 
             {/* FORM */}
