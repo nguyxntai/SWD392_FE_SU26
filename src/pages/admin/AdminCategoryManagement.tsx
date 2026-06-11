@@ -163,7 +163,7 @@ export function AdminCategoryManagement() {
     <div className="min-h-screen bg-muted/30 pb-20">
       <Navigation />
 
-      <div className="max-w-5xl mx-auto px-6 pt-10 animate-fade-in">
+      <div className="max-w-5xl mx-auto px-6 pt-32 animate-fade-in">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
@@ -252,7 +252,7 @@ export function AdminCategoryManagement() {
       {/* FORM MODAL */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

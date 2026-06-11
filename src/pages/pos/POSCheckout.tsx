@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, ShoppingCart, Trash2, CreditCard, Banknote, RefreshCw, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, ShoppingCart, Trash2, CreditCard, Banknote, RefreshCw, X, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { getProductByBarcode } from "@/services/productService";
 import { checkout, initiatePayOS } from "@/services/checkoutService";
@@ -17,6 +18,7 @@ type CartItem = {
 };
 
 export default function POSCheckout() {
+  const navigate = useNavigate();
   const [barcode, setBarcode] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerPhone, setCustomerPhone] = useState("");
@@ -26,6 +28,8 @@ export default function POSCheckout() {
   const [loading, setLoading] = useState(false);
   const [payOSLink, setPayOSLink] = useState<string | null>(null);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+  const [searchBarcode, setSearchBarcode] = useState("");
+  const [searchedProduct, setSearchProduct] = useState<Product | null>(null);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,6 +52,19 @@ export default function POSCheckout() {
     } catch (error) {
       toast.error("Product not found");
       setBarcode("");
+    }
+  };
+
+  const handleSearchProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchBarcode) return;
+
+    try {
+      const product = await getProductByBarcode(searchBarcode);
+      setSearchProduct(product);
+    } catch (error) {
+      toast.error("Product not found");
+      setSearchProduct(null);
     }
   };
 
@@ -163,20 +180,50 @@ export default function POSCheckout() {
     setCurrentOrderId(null);
   };
 
+  const handlePaymentMethodChange = (method: "CASH" | "BANK_TRANSFER" | "EWALLET") => {
+    setPaymentMethod(method);
+    // Reset PayOS state if switching back to Cash or choosing a different method
+    if (method === "CASH") {
+      setPayOSLink(null);
+      setCurrentOrderId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-muted/30 p-6 flex flex-col gap-6">
       <div className="flex justify-between items-center bg-background p-4 rounded-2xl shadow-sm border border-border">
-        <h1 className="text-2xl font-bold">POS Checkout</h1>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate("/products")}
+            className="p-2 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-primary"
+            title="Back to Shop"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-2xl font-bold">POS Checkout</h1>
+        </div>
         <div className="flex gap-4 items-center">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <form onSubmit={handleSearchProduct}>
+              <input
+                type="text"
+                value={searchBarcode}
+                onChange={(e) => setSearchBarcode(e.target.value)}
+                placeholder="Search by barcode..."
+                className="pl-10 pr-4 py-2 border border-border bg-background rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+              />
+            </form>
+          </div>
+          <div className="relative">
+            <ShoppingCart className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <form onSubmit={handleBarcodeSubmit}>
               <input
                 ref={barcodeInputRef}
                 type="text"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
-                placeholder="Scan barcode..."
+                placeholder="Scan to cart..."
                 className="pl-10 pr-4 py-2 border border-border bg-background rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
               />
             </form>
@@ -186,6 +233,51 @@ export default function POSCheckout() {
           </button>
         </div>
       </div>
+
+      {searchedProduct && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-border animate-fade-in flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="w-20 h-20 bg-muted/20 rounded-xl overflow-hidden">
+              <img 
+                src={searchedProduct.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(searchedProduct.name)}&size=200`} 
+                alt={searchedProduct.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-primary">{searchedProduct.name}</h3>
+              <p className="text-muted-foreground font-mono">{searchedProduct.barcode}</p>
+              <div className="flex gap-4 mt-1">
+                <span className="text-sm font-semibold">Price: {searchedProduct.price.toLocaleString()} VND</span>
+                <span className={`text-sm font-semibold ${searchedProduct.quantity > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  Stock: {searchedProduct.quantity}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => {
+                addToCart(searchedProduct);
+                setSearchProduct(null);
+                setSearchBarcode("");
+              }}
+              className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+            >
+              Add to Cart
+            </button>
+            <button 
+              onClick={() => {
+                setSearchProduct(null);
+                setSearchBarcode("");
+              }}
+              className="px-6 py-3 border border-border rounded-xl font-bold hover:bg-muted transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-6 flex-1">
         {/* CART */}
@@ -236,7 +328,7 @@ export default function POSCheckout() {
                         onClick={() => removeFromCart(item.productId)}
                         className="text-muted-foreground hover:text-destructive transition-colors"
                       >
-                        <X size={18} />
+                        <Trash2 size={18} />
                       </button>
                     </td>
                   </tr>
@@ -293,7 +385,7 @@ export default function POSCheckout() {
               <label className="text-sm text-muted-foreground font-medium">Payment Method</label>
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setPaymentMethod("CASH")}
+                  onClick={() => handlePaymentMethodChange("CASH")}
                   className={`p-4 border rounded-xl flex flex-col items-center gap-2 transition-all ${
                     paymentMethod === "CASH" 
                       ? "border-primary bg-primary/5 text-primary shadow-sm ring-1 ring-primary" 
@@ -304,7 +396,7 @@ export default function POSCheckout() {
                   <span className="text-xs font-bold uppercase tracking-wider">Cash</span>
                 </button>
                 <button
-                  onClick={() => setPaymentMethod("BANK_TRANSFER")}
+                  onClick={() => handlePaymentMethodChange("BANK_TRANSFER")}
                   className={`p-4 border rounded-xl flex flex-col items-center gap-2 transition-all ${
                     paymentMethod === "BANK_TRANSFER" 
                       ? "border-primary bg-primary/5 text-primary shadow-sm ring-1 ring-primary" 
@@ -333,7 +425,7 @@ export default function POSCheckout() {
               </div>
             )}
 
-            {payOSLink && (
+            {payOSLink && paymentMethod !== "CASH" && (
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                   <RefreshCw size={16} className="animate-spin" />
@@ -361,7 +453,7 @@ export default function POSCheckout() {
 
           <button
             onClick={handleCheckout}
-            disabled={loading || cart.length === 0 || (paymentMethod === "CASH" && amountReceived < finalAmount)}
+            disabled={loading || cart.length === 0}
             className="w-full mt-auto py-5 bg-primary text-primary-foreground rounded-2xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-primary/10"
           >
             {loading ? "Processing..." : "CHECKOUT"}

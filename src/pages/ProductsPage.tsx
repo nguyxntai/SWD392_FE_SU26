@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   X,
-  ShoppingBag,
   Minus,
   Plus,
   Trash2,
@@ -13,13 +12,29 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Navigation } from "../components/Navigation";
-import * as cartService from "../services/cartService";
 import * as productService from "../services/productService";
 import * as categoryService from "../services/categoryService";
-import { Cart } from "../types/cart";
 import { Category } from "../types/category";
 import { Product } from "../types/products";
 import { toast } from "sonner";
+
+/* =======================
+   TYPES
+======================= */
+interface LocalCartItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+}
+
+interface LocalCart {
+  items: LocalCartItem[];
+  totalItems: number;
+  totalQuantity: number;
+  totalAmount: number;
+}
 
 /* =======================
    HELPER FUNCTION
@@ -37,12 +52,16 @@ const getProductImage = (product: Product): string => {
 ======================= */
 export function ProductsPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const keyword = searchParams.get("search")?.toLowerCase() || "";
 
-  const productsRef = useRef<HTMLDivElement | null>(null);
-
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cart, setCart] = useState<Cart | null>(null);
+  const [cart, setCart] = useState<LocalCart>({
+    items: [],
+    totalItems: 0,
+    totalQuantity: 0,
+    totalAmount: 0,
+  });
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
@@ -58,13 +77,24 @@ export function ProductsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   /* =======================
-     FETCH PRODUCTS
+     FETCH DATA
   ======================= */
   useEffect(() => {
     fetchProducts();
-    fetchCart();
     fetchCategories();
+    // Initialize cart from localStorage
+    const savedCart = localStorage.getItem("temp_cart");
+    if (savedCart) {
+      setCart(JSON.parse(savedCart));
+    } else {
+      setCart({ items: [], totalItems: 0, totalAmount: 0, totalQuantity: 0 });
+    }
   }, []);
+
+  const saveCart = (newCart: LocalCart) => {
+    setCart(newCart);
+    localStorage.setItem("temp_cart", JSON.stringify(newCart));
+  };
 
   const fetchProducts = async () => {
     try {
@@ -101,130 +131,104 @@ export function ProductsPage() {
     fetchProducts();
   };
 
-  const fetchCart = async () => {
-    try {
-      const response = await cartService.getMyCart();
-      if (response.data?.result) {
-        setCart(response.data.result);
-      }
-    } catch (error) {
-      console.error("Error fetching cart:", error);
-    }
-  };
-
   /* =======================
-     FEATURED PRODUCT
+     CART LOGIC (LOCAL)
   ======================= */
-  const featuredProduct = products.length > 0 
-    ? products.reduce((max, p) => p.price > max.price ? p : max)
-    : null;
+  const handleAddToCart = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
 
-  /* =======================
-     CART LOGIC
-  ======================= */
-  const handleAddToCart = async (productId: string) => {
-    try {
-      const response = await cartService.addToCart({
-        productId,
+    const newCart: LocalCart = { ...cart, items: [...cart.items] };
+    const existingItem = newCart.items.find((item) => item.productId === productId);
+
+    if (existingItem) {
+      existingItem.quantity += 1;
+      existingItem.subtotal = existingItem.quantity * existingItem.price;
+    } else {
+      newCart.items.push({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
         quantity: 1,
+        subtotal: product.price
       });
-      
-      if (response?.data?.result) {
-        setCart(response.data.result);
-        toast.success("Đã thêm sản phẩm vào giỏ hàng");
-        setIsCartOpen(true);
-      }
-    } catch (error: any) {
-      console.error("Error adding to cart:", error);
-      toast.error(error.response?.data?.message || "Không thể thêm vào giỏ hàng");
     }
+
+    // Recalculate totals
+    newCart.totalQuantity = newCart.items.reduce((sum, item) => sum + item.quantity, 0);
+    newCart.totalItems = newCart.items.length;
+    newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
+
+    saveCart(newCart);
+    toast.success("Đã thêm sản phẩm vào giỏ hàng");
+    setIsCartOpen(true);
   };
 
-  const handleIncrementDecrement = async (productId: string, increment: boolean) => {
-    try {
-      const currentItem = cart?.items.find(item => item.productId === productId);
-      if (!currentItem) return;
+  const handleIncrementDecrement = (productId: string, increment: boolean) => {
+    const newCart: LocalCart = { ...cart, items: [...cart.items] };
+    const item = newCart.items.find((item) => item.productId === productId);
+    if (!item) return;
 
-      const newQuantity = increment ? currentItem.quantity + 1 : currentItem.quantity - 1;
-
-      const response = await cartService.updateCartItem({
-        productId,
-        quantity: newQuantity,
-      });
-      
-      if (response?.data?.result) {
-        setCart(response.data.result);
-      }
-    } catch (error: any) {
-      console.error("Error updating quantity:", error);
-      toast.error(error.response?.data?.message || "Không thể cập nhật số lượng");
+    if (increment) {
+      item.quantity += 1;
+    } else {
+      item.quantity = Math.max(0, item.quantity - 1);
     }
+
+    if (item.quantity === 0) {
+      newCart.items = newCart.items.filter((i) => i.productId !== productId);
+    } else {
+      item.subtotal = item.quantity * item.price;
+    }
+
+    newCart.totalQuantity = newCart.items.reduce((sum, item) => sum + item.quantity, 0);
+    newCart.totalItems = newCart.items.length;
+    newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
+
+    saveCart(newCart);
   };
 
-  const handleSetQuantity = async (productId: string, newQuantity: number) => {
-    try {
-      const currentItem = cart?.items.find(item => item.productId === productId);
-      if (!currentItem) return;
+  const handleSetQuantity = (productId: string, newQuantity: number) => {
+    const newCart: LocalCart = { ...cart, items: [...cart.items] };
+    const item = newCart.items.find((item) => item.productId === productId);
+    if (!item) return;
 
-      const delta = newQuantity;
-      
-      const response = await cartService.updateCartItem({
-        productId,
-        quantity: delta,
-      });
-      
-      if (response.data?.result) {
-        setCart(response.data.result);
-        toast.success("Đã cập nhật số lượng");
-      }
-    } catch (error: any) {
-      console.error("Error setting quantity:", error);
-      toast.error(error.response?.data?.message || "Không thể cập nhật số lượng");
+    if (newQuantity <= 0) {
+      newCart.items = newCart.items.filter((i) => i.productId !== productId);
+    } else {
+      item.quantity = newQuantity;
+      item.subtotal = item.quantity * item.price;
     }
+
+    newCart.totalQuantity = newCart.items.reduce((sum, item) => sum + item.quantity, 0);
+    newCart.totalItems = newCart.items.length;
+    newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
+
+    saveCart(newCart);
+    toast.success("Đã cập nhật số lượng");
   };
 
-  const handleRemoveItem = async (productId: string) => {
-    try {
-      const response = await cartService.deleteCartItem(productId);
-      
-      if (response?.data?.result) {
-        setCart(response.data.result);
-        toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
-      }
-    } catch (error: any) {
-      console.error("Error removing item:", error);
-      toast.error(error.response?.data?.message || "Không thể xóa sản phẩm");
-    }
+  const handleRemoveItem = (productId: string) => {
+    const newCart: LocalCart = { ...cart, items: cart.items.filter((item) => item.productId !== productId) };
+    
+    newCart.totalQuantity = newCart.items.reduce((sum, item) => sum + item.quantity, 0);
+    newCart.totalItems = newCart.items.length;
+    newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
+
+    saveCart(newCart);
+    toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
   };
 
-  const handleClearCart = async () => {
-    try {
-      const response = await cartService.clearCart();
-      
-      if (response?.data?.result) {
-        setCart(response.data.result);
-        toast.success("Đã xóa toàn bộ giỏ hàng");
-      }
-    } catch (error: any) {
-      console.error("Error clearing cart:", error);
-      toast.error(error.response?.data?.message || "Không thể xóa giỏ hàng");
-    }
+  const handleClearCart = () => {
+    const newCart = { items: [], totalItems: 0, totalAmount: 0, totalQuantity: 0 };
+    saveCart(newCart);
+    toast.success("Đã xóa toàn bộ giỏ hàng");
   };
 
-  const handleCheckout = async () => {
-    try {
-      const response = await cartService.checkout();
-      
-      if (response?.data) {
-        toast.success("Checkout thành công!");
-        setCart(null);
-        setIsCartOpen(false);
-        fetchCart();
-      }
-    } catch (error: any) {
-      console.error("Error during checkout:", error);
-      toast.error(error.response?.data?.message || "Checkout thất bại");
-    }
+  const handleCheckout = () => {
+    // Navigate to POS or handle checkout logic
+    toast.info("Vui lòng sử dụng hệ thống POS để thực hiện thanh toán");
+    navigate("/pos");
   };
 
   const handleQuantityDoubleClick = (productId: string, currentQuantity: number) => {
@@ -270,7 +274,7 @@ export function ProductsPage() {
     <div className="min-h-screen bg-muted/30">
       <Navigation />
 
-      <div className="max-w-7xl mx-auto px-6 pt-10 pb-20 animate-fade-in">
+      <div className="max-w-7xl mx-auto px-6 pt-32 pb-20 animate-fade-in">
         {/* HEADER & SEARCH */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
@@ -366,71 +370,8 @@ export function ProductsPage() {
           )}
         </AnimatePresence>
 
-        {/* FEATURED PRODUCT */}
-        {featuredProduct && (
-          <motion.section
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-16"
-          >
-            <div
-              onClick={() => {
-                productsRef.current?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                });
-
-                setTimeout(() => {
-                  setSelectedProduct(featuredProduct);
-                }, 400);
-              }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center bg-background border border-border rounded-[2.5rem] p-10 cursor-pointer shadow-xl shadow-primary/5 hover:shadow-2xl transition-all"
-            >
-              <div className="aspect-square rounded-3xl overflow-hidden border border-border">
-                <ImageWithFallback
-                  src={getProductImage(featuredProduct)}
-                  alt={featuredProduct.name}
-                  className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-                />
-              </div>
-
-              <div>
-                <span className="inline-block mb-4 px-4 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded-full uppercase tracking-widest shadow-lg shadow-primary/20">
-                  Featured Choice
-                </span>
-
-                <h2 className="text-5xl font-bold text-primary mb-4 leading-tight">
-                  {featuredProduct.name}
-                </h2>
-
-                <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-                  Barcode: {featuredProduct.barcode}
-                </p>
-
-                <p className="text-4xl font-bold text-primary mb-10">
-                  {featuredProduct.price.toLocaleString()} VND
-                </p>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddToCart(featuredProduct.id);
-                  }}
-                  className="px-10 py-5 rounded-2xl bg-primary text-primary-foreground font-bold text-lg shadow-xl shadow-primary/10 hover:bg-primary/90 transition-all"
-                >
-                  Add to Shopping Bag
-                </motion.button>
-              </div>
-            </div>
-          </motion.section>
-        )}
-
         {/* PRODUCT GRID */}
         <div
-          ref={productsRef}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
         >
           {filteredProducts.map((product) => (

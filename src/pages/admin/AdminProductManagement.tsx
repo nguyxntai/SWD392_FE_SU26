@@ -221,22 +221,34 @@ export function AdminProductManagement() {
     <div className="min-h-screen bg-muted/30 pb-20">
       <Navigation />
 
-      <div className="max-w-7xl mx-auto px-6 pt-10 animate-fade-in">
+      <div className="max-w-7xl mx-auto px-6 pt-32 animate-fade-in">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
             <h1 className="text-4xl font-bold text-primary mb-2">Products</h1>
             <p className="text-muted-foreground">Manage your store inventory and products</p>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={openCreateModal}
-            className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold shadow-lg shadow-primary/10 transition-all"
-          >
-            <Plus size={20} />
-            Add New Product
-          </motion.button>
+
+          <div className="flex gap-4">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate("/admin/categories")}
+              className="flex items-center justify-center gap-2 px-6 py-3 border border-border bg-background text-primary font-bold rounded-xl hover:bg-muted transition-all"
+            >
+              Manage Categories
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={openCreateModal}
+              className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold shadow-lg shadow-primary/10 transition-all"
+            >
+              <Plus size={20} />
+              Add New Product
+            </motion.button>
+          </div>
         </div>
 
         {/* FILTERS */}
@@ -363,7 +375,7 @@ export function AdminProductManagement() {
       {/* FORM MODAL */}
       <AnimatePresence>
         {isFormModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -5,13 +5,14 @@ import axios, {
 } from "axios";
 import { refreshToken, logout } from "./authService";
 
-const BASE_URL = "http://localhost:8080";
+const BASE_URL = "https://body-unstamped-decimeter.ngrok-free.dev";
 
 const axiosClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   withCredentials: true, 
   headers: {
     "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
   },
 });
 
