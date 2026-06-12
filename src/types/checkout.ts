@@ -21,3 +21,14 @@ export interface PayOSInitiateResponse {
   finalAmount: number;
   status: string;
 }
+
+export type PayOSReturnPaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED";
+
+export interface PayOSReturnResponse {
+  orderId: string;
+  paymentId: string;
+  merchantReference: string;
+  paymentStatus: PayOSReturnPaymentStatus;
+  orderStatus: string;
+  finalAmount: number;
+}

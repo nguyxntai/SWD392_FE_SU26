@@ -15,7 +15,9 @@ export const getProductById = async (id: string): Promise<Product> => {
 };
 
 export const getProductByBarcode = async (barcode: string): Promise<Product> => {
-  const response = await axiosClient.get<ApiResponse<Product>>(`/api/products/barcode?code=${barcode}`);
+  const response = await axiosClient.get<ApiResponse<Product>>(
+    `/api/products/barcode?code=${encodeURIComponent(barcode)}`
+  );
   return response.data.result;
 };
 

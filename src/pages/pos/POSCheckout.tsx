@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, Trash2, CreditCard, Banknote, RefreshCw, X, ArrowLeft } from "lucide-react";
+import { Search, ShoppingCart, Trash2, CreditCard, Banknote, RefreshCw, X, ArrowLeft, CornerDownLeft } from "lucide-react";
 import { toast } from "sonner";
 import { getProductByBarcode } from "@/services/productService";
 import { checkout, initiatePayOS } from "@/services/checkoutService";
 import { getOrderById } from "@/services/orderService";
+import { getApiErrorMessage } from "@/services/apiError";
 import { Product } from "@/types/products";
 
 type CartItem = {
@@ -16,6 +17,8 @@ type CartItem = {
   availableQuantity: number;
   subtotal: number;
 };
+
+const PAYOS_PENDING_ORDER_KEY = "posPendingPayOSOrderId";
 
 export default function POSCheckout() {
   const navigate = useNavigate();
@@ -30,6 +33,8 @@ export default function POSCheckout() {
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [searchBarcode, setSearchBarcode] = useState("");
   const [searchedProduct, setSearchProduct] = useState<Product | null>(null);
+  const [isSearchingProduct, setIsSearchingProduct] = useState(false);
+  const [isScanningToCart, setIsScanningToCart] = useState(false);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,30 +46,56 @@ export default function POSCheckout() {
   const finalAmount = totalAmount - discountAmount;
   const changeAmount = amountReceived > finalAmount ? amountReceived - finalAmount : 0;
 
-  const handleBarcodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!barcode) return;
+  const scanBarcodeToCart = async () => {
+    const scannedBarcode = barcodeInputRef.current?.value.trim() || barcode.trim();
+    if (!scannedBarcode || isScanningToCart) return;
 
+    setIsScanningToCart(true);
     try {
-      const product = await getProductByBarcode(barcode);
+      const product = await getProductByBarcode(scannedBarcode);
       addToCart(product);
       setBarcode("");
+      if (barcodeInputRef.current) {
+        barcodeInputRef.current.value = "";
+      }
     } catch (error) {
-      toast.error("Product not found");
+      toast.error(getApiErrorMessage(error, "Product not found"));
       setBarcode("");
+      if (barcodeInputRef.current) {
+        barcodeInputRef.current.value = "";
+      }
+    } finally {
+      setIsScanningToCart(false);
+      barcodeInputRef.current?.focus();
     }
+  };
+
+  const handleBarcodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await scanBarcodeToCart();
+  };
+
+  const handleBarcodeKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+
+    e.preventDefault();
+    await scanBarcodeToCart();
   };
 
   const handleSearchProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchBarcode) return;
+    const barcodeToSearch = searchBarcode.trim();
+    if (!barcodeToSearch || isSearchingProduct) return;
 
+    setIsSearchingProduct(true);
     try {
-      const product = await getProductByBarcode(searchBarcode);
+      const product = await getProductByBarcode(barcodeToSearch);
       setSearchProduct(product);
     } catch (error) {
-      toast.error("Product not found");
+      toast.error(getApiErrorMessage(error, "Product not found"));
       setSearchProduct(null);
+    } finally {
+      setIsSearchingProduct(false);
     }
   };
 
@@ -145,6 +176,7 @@ export default function POSCheckout() {
         const response = await initiatePayOS(payload);
         setPayOSLink(response.paymentLink);
         setCurrentOrderId(response.orderId);
+        localStorage.setItem(PAYOS_PENDING_ORDER_KEY, response.orderId);
         toast.info("Payment link generated");
       }
     } catch (error: any) {
@@ -161,6 +193,7 @@ export default function POSCheckout() {
       if (order.status === "PAID") {
         toast.success("Payment verified");
         clearCart();
+        localStorage.removeItem(PAYOS_PENDING_ORDER_KEY);
         setPayOSLink(null);
         setCurrentOrderId(null);
       } else {
@@ -204,28 +237,49 @@ export default function POSCheckout() {
         </div>
         <div className="flex gap-4 items-center">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-            <form onSubmit={handleSearchProduct}>
-              <input
-                type="text"
-                value={searchBarcode}
-                onChange={(e) => setSearchBarcode(e.target.value)}
-                placeholder="Search by barcode..."
-                className="pl-10 pr-4 py-2 border border-border bg-background rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-              />
+            <form onSubmit={handleSearchProduct} className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                <input
+                  type="text"
+                  value={searchBarcode}
+                  onChange={(e) => setSearchBarcode(e.target.value)}
+                  placeholder="Search by barcode..."
+                  className="pl-10 pr-4 py-2 border border-border bg-background rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSearchingProduct || !searchBarcode.trim()}
+                className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                title="Search barcode"
+              >
+                <CornerDownLeft size={18} />
+              </button>
             </form>
           </div>
           <div className="relative">
-            <ShoppingCart className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-            <form onSubmit={handleBarcodeSubmit}>
-              <input
-                ref={barcodeInputRef}
-                type="text"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                placeholder="Scan to cart..."
-                className="pl-10 pr-4 py-2 border border-border bg-background rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-              />
+            <form onSubmit={handleBarcodeSubmit} className="flex items-center gap-2">
+              <div className="relative">
+                <ShoppingCart className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                <input
+                  ref={barcodeInputRef}
+                  type="text"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  onKeyDown={handleBarcodeKeyDown}
+                  placeholder="Scan to cart..."
+                  className="pl-10 pr-4 py-2 border border-border bg-background rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isScanningToCart}
+                className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-border bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Add scanned barcode to cart"
+              >
+                <CornerDownLeft size={18} />
+              </button>
             </form>
           </div>
           <button onClick={clearCart} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition">
