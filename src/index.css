@@ -141,6 +141,76 @@ html {
 }
 
 /* =======================
+   PRINT STYLES (58mm)
+======================= */
+@media print {
+  @page {
+    margin: 0;
+    size: 58mm auto;
+  }
+
+  html,
+  body,
+  #root,
+  #root > div {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: white !important;
+    display: block !important;
+  }
+
+  #root > div > :not(.receipt-58mm),
+  .no-print,
+  .print-hidden {
+    display: none !important;
+  }
+
+  .receipt-58mm {
+    display: block !important;
+    width: 58mm !important;
+    padding: 2mm !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    color: black !important;
+    background: white !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+
+  .receipt-58mm table {
+    display: table !important;
+  }
+
+  .receipt-58mm thead {
+    display: table-header-group !important;
+  }
+
+  .receipt-58mm tbody {
+    display: table-row-group !important;
+  }
+
+  .receipt-58mm tr {
+    display: table-row !important;
+  }
+
+  .receipt-58mm th,
+  .receipt-58mm td {
+    display: table-cell !important;
+  }
+
+  .receipt-58mm .flex {
+    display: flex !important;
+  }
+}
+
+.receipt-58mm {
+  display: none;
+}
+
+/* =======================
    BUTTON UTILITIES
 ======================= */
 @layer utilities {

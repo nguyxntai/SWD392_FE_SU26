@@ -8,6 +8,7 @@ import { getOrderById } from "@/services/orderService";
 import { PayOSReturnResponse } from "@/types/checkout";
 import { Order } from "@/types/order";
 import { formatDateTime, formatVnd } from "@/utils/format";
+import { Receipt } from "@/components/pos/Receipt";
 
 const PAYOS_PENDING_ORDER_KEY = "posPendingPayOSOrderId";
 const PAID_STATUS = "PAID";
@@ -56,6 +57,11 @@ export default function PaymentReturn() {
         localStorage.removeItem(PAYOS_PENDING_ORDER_KEY);
         await loadOrder(nextResult.orderId);
         if (showToast) toast.success("Payment verified");
+        
+        // Auto print after PayOS success
+        setTimeout(() => {
+          window.print();
+        }, 1500);
       } else if (nextResult.paymentStatus === PENDING_STATUS && showToast) {
         toast.info("Payment is still being verified");
       } else if (nextResult.paymentStatus === CANCELLED_STATUS && showToast) {
@@ -89,6 +95,11 @@ export default function PaymentReturn() {
       if (nextOrder.status === PAID_STATUS) {
         localStorage.removeItem(PAYOS_PENDING_ORDER_KEY);
         if (showToast) toast.success("Payment verified");
+        
+        // Auto print after PayOS success
+        setTimeout(() => {
+          window.print();
+        }, 1500);
       } else if (showToast) {
         toast.info("Payment is still being verified");
       }
@@ -173,7 +184,10 @@ export default function PaymentReturn() {
 
   return (
     <div className="min-h-screen bg-muted/30 p-6">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      {/* 58mm Receipt for Printing */}
+      {order && isSuccess && <Receipt order={order} />}
+
+      <div className="mx-auto flex max-w-3xl flex-col gap-6 print:hidden">
         <div className="flex items-center justify-between rounded-2xl border border-border bg-background p-4 shadow-sm print:hidden">
           <Link
             to="/pos"

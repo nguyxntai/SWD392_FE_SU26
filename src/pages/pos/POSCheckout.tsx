@@ -169,9 +169,13 @@ export default function POSCheckout() {
 
     try {
       if (paymentMethod === "CASH") {
-        await checkout(payload);
+        const response = await checkout(payload);
         toast.success("Checkout successful");
         clearCart();
+        // Navigate to order detail with auto-print
+        if (response.order?.id) {
+          navigate(`/orders/${response.order.id}?print=true`);
+        }
       } else {
         const response = await initiatePayOS(payload);
         setPayOSLink(response.paymentLink);
