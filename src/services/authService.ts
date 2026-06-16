@@ -73,7 +73,7 @@ export async function register(payload: RegisterPayload): Promise<void> {
 export async function logout(): Promise<void> {
   try {    
       await axiosClient.post("/api/auth/logout", null, {
-        withCredentials: true, // backend dùng cookie
+        withCredentials: true, // backend uses cookies
       });
   } catch (err) {
     console.warn("Logout API failed, clearing local data anyway");
@@ -102,9 +102,8 @@ export async function refreshToken() {
 
   const { accessToken } = data.result;
 
-  // chỉ lưu accessToken
+  // only store the access token
   localStorage.setItem("accessToken", accessToken);
 
   return data.result;
 }
-

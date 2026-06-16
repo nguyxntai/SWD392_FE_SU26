@@ -102,7 +102,7 @@ export function ProductsPage() {
       setProducts(data);
     } catch (error) {
       console.error("Error fetching products:", error);
-      toast.error("Không thể tải danh sách sản phẩm");
+      toast.error("Could not load products");
     }
   };
 
@@ -112,14 +112,14 @@ export function ProductsPage() {
       setCategories(categoriesData);
     } catch (error) {
       console.error("Error fetching categories:", error);
-      toast.error("Không thể tải danh sách danh mục");
+      toast.error("Could not load categories");
     }
   };
 
   const handleSearchAndFilter = () => {
     // Local filtering is already handled by filteredProducts variable
     setShowFilters(false);
-    toast.success("Đã áp dụng bộ lọc");
+    toast.success("Filters applied");
   };
 
   const handleResetFilters = () => {
@@ -160,7 +160,7 @@ export function ProductsPage() {
     newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
 
     saveCart(newCart);
-    toast.success("Đã thêm sản phẩm vào giỏ hàng");
+    toast.success("Product added to cart");
     setIsCartOpen(true);
   };
 
@@ -205,7 +205,7 @@ export function ProductsPage() {
     newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
 
     saveCart(newCart);
-    toast.success("Đã cập nhật số lượng");
+    toast.success("Quantity updated");
   };
 
   const handleRemoveItem = (productId: string) => {
@@ -216,18 +216,18 @@ export function ProductsPage() {
     newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
 
     saveCart(newCart);
-    toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
+    toast.success("Product removed from cart");
   };
 
   const handleClearCart = () => {
     const newCart = { items: [], totalItems: 0, totalAmount: 0, totalQuantity: 0 };
     saveCart(newCart);
-    toast.success("Đã xóa toàn bộ giỏ hàng");
+    toast.success("Cart cleared");
   };
 
   const handleCheckout = () => {
     // Navigate to POS or handle checkout logic
-    toast.info("Vui lòng sử dụng hệ thống POS để thực hiện thanh toán");
+    toast.info("Please use the POS system to complete checkout");
     navigate("/pos");
   };
 

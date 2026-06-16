@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Plus, Edit, Trash2, X, ArrowLeft } from "lucide-react";
+import { Boxes, Plus, Edit, Trash2, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navigation } from "../../components/Navigation";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Category } from "@/types/category";
 import {
   createCategory,
@@ -12,23 +12,18 @@ import {
 } from "@/services/categoryService";
 
 export function AdminCategoryManagement() {
-  /* =====================
-     STATE
-  ====================== */
   const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] =
-    useState<Category | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [status, setStatus] = useState<Category["status"]>("ACTIVE");
   const [isFetching, setIsFetching] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
-  /* =====================
-     GET ALL CATEGORIES
-  ====================== */
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -45,13 +40,11 @@ export function AdminCategoryManagement() {
     fetchCategories();
   }, []);
 
-  /* =====================
-     MODAL HANDLERS
-  ====================== */
   const openCreateModal = () => {
     setEditingCategory(null);
     setName("");
     setDescription("");
+    setStatus("ACTIVE");
     setIsModalOpen(true);
   };
 
@@ -59,6 +52,7 @@ export function AdminCategoryManagement() {
     setEditingCategory(category);
     setName(category.name);
     setDescription(category.description || "");
+    setStatus(category.status || "ACTIVE");
     setIsModalOpen(true);
   };
 
@@ -67,11 +61,9 @@ export function AdminCategoryManagement() {
     setEditingCategory(null);
     setName("");
     setDescription("");
+    setStatus("ACTIVE");
   };
 
-  /* =====================
-     CREATE / UPDATE
-  ====================== */
   const handleSave = async () => {
     if (isSaving) return;
 
@@ -82,11 +74,10 @@ export function AdminCategoryManagement() {
       return;
     }
 
-    // FE duplicate check
     const isDuplicate = categories.some(
-      (c) =>
-        c.name.toLowerCase() === trimmedName.toLowerCase() &&
-        c.id !== editingCategory?.id
+      (category) =>
+        category.name.toLowerCase() === trimmedName.toLowerCase() &&
+        category.id !== editingCategory?.id
     );
 
     if (isDuplicate) {
@@ -98,21 +89,18 @@ export function AdminCategoryManagement() {
       setIsSaving(true);
 
       if (editingCategory) {
-        // UPDATE
         const updated = await updateCategory(
           editingCategory.id,
           trimmedName,
-          description
+          description,
+          status
         );
 
         setCategories((prev) =>
-          prev.map((c) =>
-            c.id === updated.id ? updated : c
-          )
+          prev.map((category) => (category.id === updated.id ? updated : category))
         );
       } else {
-        // CREATE
-        const newCategory = await createCategory(trimmedName, description);
+        const newCategory = await createCategory(trimmedName, description, status);
         setCategories((prev) => [...prev, newCategory]);
       }
 
@@ -124,30 +112,22 @@ export function AdminCategoryManagement() {
     }
   };
 
-  /* =====================
-    DELETE
-  ===================== */
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this category?")) return;
 
     try {
       await deleteCategory(id);
-
-      // update UI sau khi delete thành công
-      setCategories((prev) =>
-        prev.filter((c) => c.id !== id)
-      );
+      setCategories((prev) => prev.filter((category) => category.id !== id));
     } catch (err: any) {
-      // Axios error
-      const status = err?.response?.status;
+      const statusCode = err?.response?.status;
       const apiMessage = err?.response?.data?.message;
 
-      if (status === 403) {
+      if (statusCode === 403) {
         alert("You do not have permission to delete this category.");
         return;
       }
 
-      if (status === 409) {
+      if (statusCode === 409) {
         alert("Cannot delete this category because it is being used.");
         return;
       }
@@ -156,31 +136,57 @@ export function AdminCategoryManagement() {
     }
   };
 
-  /* =====================
-     RENDER
-  ====================== */
   return (
     <div className="min-h-screen bg-muted/30 pb-20">
       <Navigation />
 
-      <div className="max-w-5xl mx-auto px-6 pt-32 animate-fade-in">
-        {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="container mx-auto px-4 pt-24"
+      >
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-primary mb-2">Categories</h1>
-            <p className="text-muted-foreground">Manage product categories</p>
+            <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
+              <Boxes className="w-8 h-8" />
+              Category Management
+            </h1>
+            <p className="text-muted-foreground mt-1">Manage product categories and category availability</p>
           </div>
 
           <div className="flex gap-4">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate("/admin/products")}
-              className="flex items-center gap-2 px-6 py-3 border border-border bg-background text-primary font-bold rounded-xl hover:bg-muted transition-all"
-            >
-              <ArrowLeft size={18} />
-              Back
-            </motion.button>
+            <div className="flex bg-white p-1 rounded-xl shadow-sm border border-border w-full md:w-auto">
+              <button
+                onClick={() => navigate("/admin/products")}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all ${
+                  location.pathname === "/admin/products"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                Products
+              </button>
+              <button
+                onClick={() => navigate("/admin/categories")}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all ${
+                  location.pathname === "/admin/categories"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                Categories
+              </button>
+              <button
+                onClick={() => navigate("/admin/inventory")}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all ${
+                  location.pathname === "/admin/inventory"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                Inventory
+              </button>
+            </div>
 
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -194,62 +200,76 @@ export function AdminCategoryManagement() {
           </div>
         </div>
 
-        {/* TABLE */}
-        <div className="bg-background rounded-2xl shadow-sm border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/10 border-b border-border text-left text-muted-foreground">
-                <th className="px-6 py-4 font-semibold uppercase tracking-wider">Category Info</th>
-                <th className="px-6 py-4 font-semibold uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {isFetching ? (
-                <tr>
-                  <td colSpan={2} className="px-6 py-20 text-center text-muted-foreground italic">
-                    Loading categories...
-                  </td>
+        <div className="bg-white rounded-3xl shadow-sm border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 border-b border-border text-left text-muted-foreground">
+                  <th className="px-6 py-4 font-semibold uppercase tracking-wider">Category Info</th>
+                  <th className="px-6 py-4 font-semibold uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 font-semibold uppercase tracking-wider text-right">Actions</th>
                 </tr>
-              ) : categories.length === 0 ? (
-                <tr>
-                  <td colSpan={2} className="px-6 py-20 text-center text-muted-foreground italic">
-                    No categories found.
-                  </td>
-                </tr>
-              ) : (
-                categories.map((c) => (
-                  <tr key={c.id} className="hover:bg-muted/5 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-primary text-lg">{c.name}</div>
-                      {c.description && (
-                        <div className="text-sm text-muted-foreground mt-1">{c.description}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => openEditModal(c)}
-                          className="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                        >
-                          <Edit size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(c.id)}
-                          className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {isFetching ? (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-20 text-center text-muted-foreground italic">
+                      Loading categories...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : categories.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-20 text-center text-muted-foreground italic">
+                      No categories found. Click "Add Category" to create one.
+                    </td>
+                  </tr>
+                ) : (
+                  categories.map((category) => (
+                    <tr key={category.id} className="hover:bg-muted/5 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-primary text-lg">{category.name}</div>
+                        {category.description && (
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {category.description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                            category.status === "ACTIVE"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-destructive/10 text-destructive"
+                          }`}
+                        >
+                          {category.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => openEditModal(category)}
+                            className="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(category.id)}
+                            className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* FORM MODAL */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -268,7 +288,7 @@ export function AdminCategoryManagement() {
             >
               <div className="px-8 py-6 border-b border-border flex items-center justify-between bg-muted/10">
                 <h2 className="text-2xl font-bold text-primary">
-                  {editingCategory ? 'Edit Category' : 'Add New Category'}
+                  {editingCategory ? "Edit Category" : "Add New Category"}
                 </h2>
                 <button onClick={closeModal} className="p-2 hover:bg-muted rounded-full transition-colors">
                   <X size={20} />
@@ -297,6 +317,18 @@ export function AdminCategoryManagement() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-primary uppercase tracking-wider">Status</label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as Category["status"])}
+                    className="w-full p-3 bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer"
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
+
                 <div className="flex gap-4 pt-4">
                   <button
                     onClick={closeModal}
@@ -318,21 +350,5 @@ export function AdminCategoryManagement() {
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-/* =====================
-   EMPTY STATE
-====================== */
-function determineEmptyState() {
-  return (
-    <tr>
-      <td
-        colSpan={2}
-        className="px-6 py-12 text-center text-gray-500"
-      >
-        No categories found. Click “Add Category” to create one.
-      </td>
-    </tr>
   );
 }

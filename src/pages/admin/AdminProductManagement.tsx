@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from 'react';
 import {
   Edit,
@@ -30,6 +30,7 @@ const getProductImage = (product: Product): string => {
 
 export function AdminProductManagement() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -69,7 +70,7 @@ export function AdminProductManagement() {
       setProducts(data);
     } catch (error) {
       console.error("Error fetching products:", error);
-      toast.error("Không thể tải danh sách sản phẩm");
+      toast.error("Could not load products");
     }
   };
 
@@ -79,7 +80,7 @@ export function AdminProductManagement() {
       setCategories(categoriesData);
     } catch (error) {
       console.error("Error fetching categories:", error);
-      toast.error("Không thể tải danh sách danh mục");
+      toast.error("Could not load categories");
     }
   };
 
@@ -176,7 +177,7 @@ export function AdminProductManagement() {
         };
 
         await productService.updateProduct(editingProduct.id, updateData);
-        toast.success('Cập nhật sản phẩm thành công');
+        toast.success('Product updated successfully');
       } else {
         // CREATE PRODUCT
         const createData = {
@@ -191,14 +192,14 @@ export function AdminProductManagement() {
           minStockLevel: formData.minStockLevel,
         };
         await productService.createProduct(createData);
-        toast.success('Tạo sản phẩm thành công');
+        toast.success('Product created successfully');
       }
 
       fetchProducts();
       closeFormModal();
     } catch (error: any) {
       console.error('Error saving product:', error);
-      toast.error(error.response?.data?.message || 'Không thể lưu sản phẩm');
+      toast.error(error.response?.data?.message || 'Could not save product');
     }
   };
 
@@ -209,11 +210,11 @@ export function AdminProductManagement() {
 
     try {
       await productService.deleteProduct(product.id);
-      toast.success('Xóa sản phẩm thành công');
+      toast.success('Product deleted successfully');
       fetchProducts();
     } catch (error: any) {
       console.error('Error deleting product:', error);
-      toast.error(error.response?.data?.message || 'Không thể xóa sản phẩm');
+      toast.error(error.response?.data?.message || 'Could not delete product');
     }
   };
 
@@ -221,23 +222,54 @@ export function AdminProductManagement() {
     <div className="min-h-screen bg-muted/30 pb-20">
       <Navigation />
 
-      <div className="max-w-7xl mx-auto px-6 pt-32 animate-fade-in">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="container mx-auto px-4 pt-24"
+      >
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-primary mb-2">Products</h1>
-            <p className="text-muted-foreground">Manage your store inventory and products</p>
+            <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
+              <Boxes className="w-8 h-8" />
+              Product Management
+            </h1>
+            <p className="text-muted-foreground mt-1">Manage products, pricing, inventory details, and availability</p>
           </div>
 
           <div className="flex gap-4">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate("/admin/categories")}
-              className="flex items-center justify-center gap-2 px-6 py-3 border border-border bg-background text-primary font-bold rounded-xl hover:bg-muted transition-all"
-            >
-              Manage Categories
-            </motion.button>
+            <div className="flex bg-white p-1 rounded-xl shadow-sm border border-border w-full md:w-auto">
+              <button
+                onClick={() => navigate('/admin/products')}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all ${
+                  location.pathname === '/admin/products'
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                Products
+              </button>
+              <button
+                onClick={() => navigate('/admin/categories')}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all ${
+                  location.pathname === '/admin/categories'
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                Categories
+              </button>
+              <button
+                onClick={() => navigate('/admin/inventory')}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all ${
+                  location.pathname === '/admin/inventory'
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                Inventory
+              </button>
+            </div>
 
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -252,13 +284,13 @@ export function AdminProductManagement() {
         </div>
 
         {/* FILTERS */}
-        <div className="bg-background rounded-2xl shadow-sm border border-border p-6 mb-8 flex flex-wrap items-center gap-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-4 mb-6 flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[300px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
             <input
               type="text"
               placeholder="Search products by name or barcode..."
-              className="w-full pl-10 pr-4 py-3 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+              className="w-full pl-12 pr-4 py-3 rounded-xl border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all bg-muted/20"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -292,11 +324,11 @@ export function AdminProductManagement() {
         </div>
 
         {/* TABLE */}
-        <div className="bg-background rounded-2xl shadow-sm border border-border overflow-hidden">
+        <div className="bg-white rounded-3xl shadow-sm border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-muted/10 border-b border-border text-left text-muted-foreground">
+                <tr className="bg-muted/50 border-b border-border text-left text-muted-foreground">
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider">Product</th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider">Barcode</th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider">Category</th>
@@ -370,7 +402,7 @@ export function AdminProductManagement() {
             </table>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* FORM MODAL */}
       <AnimatePresence>

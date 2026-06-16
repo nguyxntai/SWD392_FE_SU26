@@ -9,6 +9,7 @@ import OrderDetail from "./pages/orders/OrderDetail";
 
 import { AdminProductManagement } from "./pages/admin/AdminProductManagement";
 import { AdminCategoryManagement } from "./pages/admin/AdminCategoryManagement";
+import { AdminInventoryManagement } from "./pages/admin/AdminInventoryManagement";
 import { ProtectedAdminRoute } from "./routes/ProtectedAdminRoute";
 import { Toaster } from "./components/ui/sonner";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
@@ -35,6 +36,7 @@ export default function App() {
           <Route element={<ProtectedAdminRoute />}>
             <Route path="/admin/products" element={<AdminProductManagement />} />
             <Route path="/admin/categories" element={<AdminCategoryManagement />} />
+            <Route path="/admin/inventory" element={<AdminInventoryManagement />} />
           </Route>
 
           {/* FALLBACK */}

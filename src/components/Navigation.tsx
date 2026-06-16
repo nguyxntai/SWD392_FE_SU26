@@ -202,7 +202,7 @@ export function Navigation() {
               </h3>
 
               <p className="text-sm text-muted-foreground mb-6">
-                Bạn có chắc chắn muốn đăng xuất không?
+                Are you sure you want to log out?
               </p>
 
               {/* ACTION BUTTONS */}

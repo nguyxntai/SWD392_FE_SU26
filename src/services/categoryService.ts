@@ -9,11 +9,12 @@ const SUCCESS_CODE = 1000;
 ===================== */
 export async function createCategory(
   name: string,
-  description?: string
+  description?: string,
+  status: Category["status"] = "ACTIVE"
 ): Promise<Category> {
   const response = await axiosClient.post<ApiResponse<Category>>(
     "/api/categories",
-    { name, description }
+    { name, description, status }
   );
 
   const data = response.data;
@@ -48,11 +49,12 @@ export async function getCategories(): Promise<Category[]> {
 export async function updateCategory(
   id: string,
   name: string,
-  description?: string
+  description?: string,
+  status?: Category["status"]
 ): Promise<Category> {
   const response = await axiosClient.put<ApiResponse<Category>>(
     `/api/categories/${id}`,
-    { name, description }
+    { name, description, status }
   );
 
   const data = response.data;
