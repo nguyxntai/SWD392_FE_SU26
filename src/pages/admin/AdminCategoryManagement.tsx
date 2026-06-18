@@ -154,7 +154,7 @@ export function AdminCategoryManagement() {
             <p className="text-muted-foreground mt-1">Manage product categories and category availability</p>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex flex-col items-stretch md:items-end gap-3">
             <div className="flex bg-white p-1 rounded-xl shadow-sm border border-border w-full md:w-auto">
               <button
                 onClick={() => navigate("/admin/products")}
@@ -192,7 +192,7 @@ export function AdminCategoryManagement() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={openCreateModal}
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/10 transition-all"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/10 transition-all md:w-fit"
             >
               <Plus size={20} />
               Add Category

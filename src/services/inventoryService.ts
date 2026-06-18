@@ -13,11 +13,14 @@ export interface InventoryTransaction {
   id: string;
   productId: string;
   productName: string;
+  barcode?: string;
   createdBy: string;
   type: "SALE" | "IMPORT" | "ADJUSTMENT";
   quantityChange: number;
   beforeQuantity: number;
   afterQuantity: number;
+  unitCost?: number;
+  unitPrice?: number;
   referenceType: string;
   referenceId: string;
   createdAt: string;
@@ -50,6 +53,21 @@ export interface CreateImportReceiptRequest {
   }>;
 }
 
+export interface ImportReceiptItem {
+  productId?: string;
+  productName?: string;
+  barcode?: string;
+  quantity: number;
+  unitCost: number;
+}
+
+export interface ImportReceipt {
+  id: string;
+  supplierId?: string;
+  note?: string;
+  items: ImportReceiptItem[];
+}
+
 export const getInventory = async (): Promise<InventoryItem[]> => {
   const response = await axiosClient.get<ApiResponse<InventoryItem[]>>("/api/inventory");
   return response.data.result;
@@ -72,5 +90,10 @@ export const createSupplier = async (payload: CreateSupplierRequest): Promise<Su
 
 export const createImportReceipt = async (payload: CreateImportReceiptRequest): Promise<unknown> => {
   const response = await axiosClient.post<ApiResponse<unknown>>("/api/import-receipts", payload);
+  return response.data.result;
+};
+
+export const getImportReceiptById = async (id: string): Promise<ImportReceipt> => {
+  const response = await axiosClient.get<ApiResponse<ImportReceipt>>(`/api/import-receipts/${id}`);
   return response.data.result;
 };

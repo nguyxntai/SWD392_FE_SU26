@@ -17,8 +17,10 @@ import * as inventoryService from '../../services/inventoryService';
 import { InventoryItem, InventoryTransaction, Supplier } from '../../services/inventoryService';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatDateTime } from '../../utils/format';
+import { formatDateTime, formatVnd } from '../../utils/format';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getProductById } from '../../services/productService';
+import { getOrderById } from '../../services/orderService';
 
 export function AdminInventoryManagement() {
   const navigate = useNavigate();
@@ -26,6 +28,8 @@ export function AdminInventoryManagement() {
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
+  const [importUnitCosts, setImportUnitCosts] = useState<Record<string, number>>({});
+  const [saleUnitPrices, setSaleUnitPrices] = useState<Record<string, number>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,6 +37,7 @@ export function AdminInventoryManagement() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSubmittingImport, setIsSubmittingImport] = useState(false);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
+  const [isLoadingUnitCost, setIsLoadingUnitCost] = useState(false);
   const [importForm, setImportForm] = useState({
     quantity: 1,
     unitCost: 0,
@@ -89,11 +94,99 @@ export function AdminInventoryManagement() {
     try {
       const data = await inventoryService.getInventoryTransactions();
       setTransactions(data);
+      loadImportUnitCosts(data);
+      loadSaleUnitPrices(data);
     } catch (error) {
       console.error("Error fetching transactions:", error);
       toast.error("Could not load inventory transactions");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadImportUnitCosts = async (nextTransactions: InventoryTransaction[]) => {
+    const importTransactions = nextTransactions.filter(
+      (tx) => tx.type === 'IMPORT' && tx.referenceType === 'IMPORT_RECEIPT' && tx.referenceId
+    );
+
+    if (importTransactions.length === 0) {
+      setImportUnitCosts({});
+      return;
+    }
+
+    const receiptIds = Array.from(new Set(importTransactions.map((tx) => tx.referenceId)));
+
+    try {
+      const receipts = await Promise.all(
+        receiptIds.map((id) => inventoryService.getImportReceiptById(id))
+      );
+      const receiptById = new Map(receipts.map((receipt) => [receipt.id, receipt]));
+      const nextCosts: Record<string, number> = {};
+
+      importTransactions.forEach((tx) => {
+        if (typeof tx.unitCost === 'number') {
+          nextCosts[tx.id] = tx.unitCost;
+          return;
+        }
+
+        const receipt = receiptById.get(tx.referenceId);
+        const matchedItem = receipt?.items.find((item) =>
+          item.productId === tx.productId ||
+          item.barcode === tx.barcode ||
+          item.productName === tx.productName
+        ) || (receipt?.items.length === 1 ? receipt.items[0] : undefined);
+
+        if (typeof matchedItem?.unitCost === 'number') {
+          nextCosts[tx.id] = matchedItem.unitCost;
+        }
+      });
+
+      setImportUnitCosts(nextCosts);
+    } catch (error) {
+      console.error("Error fetching import receipt unit costs:", error);
+      setImportUnitCosts({});
+    }
+  };
+
+  const loadSaleUnitPrices = async (nextTransactions: InventoryTransaction[]) => {
+    const saleTransactions = nextTransactions.filter(
+      (tx) => tx.type === 'SALE' && tx.referenceType === 'ORDER' && tx.referenceId
+    );
+
+    if (saleTransactions.length === 0) {
+      setSaleUnitPrices({});
+      return;
+    }
+
+    const orderIds = Array.from(new Set(saleTransactions.map((tx) => tx.referenceId)));
+
+    try {
+      const orders = await Promise.all(orderIds.map((id) => getOrderById(id)));
+      const orderById = new Map(orders.map((order) => [order.id, order]));
+      const nextPrices: Record<string, number> = {};
+
+      saleTransactions.forEach((tx) => {
+        if (typeof tx.unitPrice === 'number') {
+          nextPrices[tx.id] = tx.unitPrice;
+          return;
+        }
+
+        const order = orderById.get(tx.referenceId);
+        const matchedItem = order?.items.find((item) =>
+          item.id === tx.productId ||
+          item.barcode === tx.barcode ||
+          item.productName === tx.productName
+        ) || (order?.items.length === 1 ? order.items[0] : undefined);
+
+        if (typeof matchedItem?.price === 'number') {
+          nextPrices[tx.id] = matchedItem.price;
+        }
+      });
+
+      setSaleUnitPrices(nextPrices);
+    } catch (error) {
+      console.error("Error fetching sale unit prices:", error);
+      setSaleUnitPrices({});
     }
   };
 
@@ -107,7 +200,7 @@ export function AdminInventoryManagement() {
     tx.barcode?.includes(searchTerm)
   );
 
-  const openImportModal = (item: InventoryItem) => {
+  const openImportModal = async (item: InventoryItem) => {
     setSelectedItem(item);
     setImportForm({
       quantity: 1,
@@ -124,6 +217,20 @@ export function AdminInventoryManagement() {
     setIsImportModalOpen(true);
     if (suppliers.length === 0) {
       fetchSuppliers();
+    }
+
+    setIsLoadingUnitCost(true);
+    try {
+      const product = await getProductById(item.productId);
+      setImportForm((current) => ({
+        ...current,
+        unitCost: product.costPrice || 0,
+      }));
+    } catch (error) {
+      console.error("Error fetching product cost price:", error);
+      toast.error("Could not load current unit cost");
+    } finally {
+      setIsLoadingUnitCost(false);
     }
   };
 
@@ -253,29 +360,31 @@ export function AdminInventoryManagement() {
           </div>
         </div>
 
-        <div className="flex bg-white p-1 rounded-xl shadow-sm border border-border w-full md:w-fit mb-6">
-          <button
-            onClick={() => setActiveTab('current')}
-            className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'current' 
-              ? 'bg-primary text-primary-foreground shadow-md' 
-              : 'text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            <Boxes className="w-4 h-4" />
-            Current Inventory
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'history' 
-              ? 'bg-primary text-primary-foreground shadow-md' 
-              : 'text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            <History className="w-4 h-4" />
-            Transaction History
-          </button>
+        <div className="mb-6 flex justify-end">
+          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-border w-full md:w-fit">
+            <button
+              onClick={() => setActiveTab('current')}
+              className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'current' 
+                ? 'bg-primary text-primary-foreground shadow-md' 
+                : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <Boxes className="w-4 h-4" />
+              Current Inventory
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'history' 
+                ? 'bg-primary text-primary-foreground shadow-md' 
+                : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <History className="w-4 h-4" />
+              Transaction History
+            </button>
+          </div>
         </div>
 
         {/* SEARCH BAR */}
@@ -396,6 +505,7 @@ export function AdminInventoryManagement() {
                       <th className="px-6 py-4 font-semibold text-muted-foreground">Product</th>
                       <th className="px-6 py-4 font-semibold text-muted-foreground">Type</th>
                       <th className="px-6 py-4 font-semibold text-muted-foreground">Change</th>
+                      <th className="px-6 py-4 font-semibold text-muted-foreground text-right">Unit Price/Cost</th>
                       <th className="px-6 py-4 font-semibold text-muted-foreground">Details</th>
                       <th className="px-6 py-4 font-semibold text-muted-foreground">Created By</th>
                     </tr>
@@ -403,13 +513,13 @@ export function AdminInventoryManagement() {
                   <tbody className="divide-y divide-border">
                     {loading ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                        <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                           Loading history...
                         </td>
                       </tr>
                     ) : filteredTransactions.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                        <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                           No transaction history yet
                         </td>
                       </tr>
@@ -444,6 +554,13 @@ export function AdminInventoryManagement() {
                               <span className={`font-bold ${tx.quantityChange > 0 ? 'text-green-600' : 'text-destructive'}`}>
                                 {tx.quantityChange > 0 ? `+${tx.quantityChange}` : tx.quantityChange}
                               </span>
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium text-primary">
+                              {isImport
+                                ? formatVnd(tx.unitCost ?? importUnitCosts[tx.id])
+                                : isSale
+                                  ? formatVnd(tx.unitPrice ?? saleUnitPrices[tx.id])
+                                  : 'N/A'}
                             </td>
                             <td className="px-6 py-4 text-sm text-muted-foreground">
                               {tx.beforeQuantity} {'->'} {tx.afterQuantity}
@@ -522,8 +639,12 @@ export function AdminInventoryManagement() {
                       min={0}
                       value={importForm.unitCost}
                       onChange={(e) => setImportForm({ ...importForm, unitCost: Number(e.target.value) })}
-                      className="w-full rounded-xl border border-border bg-muted/30 p-3 font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      disabled={isLoadingUnitCost}
+                      className="w-full rounded-xl border border-border bg-muted/30 p-3 font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      {isLoadingUnitCost ? 'Loading current unit cost...' : 'Prefilled from the product cost price.'}
+                    </p>
                   </div>
                 </div>
 

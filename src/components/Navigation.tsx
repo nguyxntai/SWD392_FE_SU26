@@ -1,9 +1,6 @@
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
-  ShoppingCart,
-  User,
   LogOut,
-  Search,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,7 +20,6 @@ export function Navigation() {
   const role = localStorage.getItem("role");
 
   const isLoggedIn = Boolean(token);
-  const isAdmin = role === ROLE.ADMIN;
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [showSearch, setShowSearch] = useState(false);
@@ -77,9 +73,9 @@ export function Navigation() {
         {/* LINKS */}
         <div className="hidden md:flex items-center gap-8">
           {[
-            { name: "Shop", path: "/products", roles: ["ANY"] },
+            { name: "Products", path: "/products", roles: ["ANY"] },
             { name: "POS", path: "/pos", roles: ["ADMIN", "MANAGER", "CASHIER"] },
-            { name: "Admin", path: "/admin/products", roles: ["ADMIN", "MANAGER"] },
+            { name: "Management", path: "/admin/products", roles: ["ADMIN", "MANAGER"] },
           ]
             .filter((link) => {
               if (!link.roles || link.roles.includes("ANY")) return true;

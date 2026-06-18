@@ -1,14 +1,6 @@
-import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import {
-  X,
-  Minus,
-  Plus,
-  Trash2,
-  ShoppingCart,
-  Search,
-  SlidersHorizontal,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { X, Search, SlidersHorizontal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { Navigation } from "../components/Navigation";
@@ -18,83 +10,35 @@ import { Category } from "../types/category";
 import { Product } from "../types/products";
 import { toast } from "sonner";
 
-/* =======================
-   TYPES
-======================= */
-interface LocalCartItem {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  subtotal: number;
-}
-
-interface LocalCart {
-  items: LocalCartItem[];
-  totalItems: number;
-  totalQuantity: number;
-  totalAmount: number;
-}
-
-/* =======================
-   HELPER FUNCTION
-======================= */
 const getProductImage = (product: Product): string => {
   if (product.imageUrl) {
     return product.imageUrl;
   }
-  // Fallback to avatar if no images
+
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&size=500&background=random`;
 };
 
-/* =======================
-   COMPONENT
-======================= */
 export function ProductsPage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const keyword = searchParams.get("search")?.toLowerCase() || "";
+  const initialKeyword = searchParams.get("search") || "";
 
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cart, setCart] = useState<LocalCart>({
-    items: [],
-    totalItems: 0,
-    totalQuantity: 0,
-    totalAmount: 0,
-  });
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
-  const [tempQuantity, setTempQuantity] = useState<string>("");
-
-  // Filter states
-  const [searchInput, setSearchInput] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [minPrice, setMinPrice] = useState<string>("");
-  const [maxPrice, setMaxPrice] = useState<string>("");
-  const [sortDirection, setSortDirection] = useState<string>("");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [searchInput, setSearchInput] = useState(initialKeyword);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  /* =======================
-     FETCH DATA
-  ======================= */
   useEffect(() => {
     fetchProducts();
     fetchCategories();
-    // Initialize cart from localStorage
-    const savedCart = localStorage.getItem("temp_cart");
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
-    } else {
-      setCart({ items: [], totalItems: 0, totalAmount: 0, totalQuantity: 0 });
-    }
   }, []);
 
-  const saveCart = (newCart: LocalCart) => {
-    setCart(newCart);
-    localStorage.setItem("temp_cart", JSON.stringify(newCart));
-  };
+  useEffect(() => {
+    setSearchInput(initialKeyword);
+  }, [initialKeyword]);
 
   const fetchProducts = async () => {
     try {
@@ -116,170 +60,34 @@ export function ProductsPage() {
     }
   };
 
-  const handleSearchAndFilter = () => {
-    // Local filtering is already handled by filteredProducts variable
-    setShowFilters(false);
-    toast.success("Filters applied");
-  };
-
-  const handleResetFilters = () => {
+  const resetFilters = () => {
     setSearchInput("");
     setSelectedCategory("");
     setMinPrice("");
     setMaxPrice("");
-    setSortDirection("");
-    fetchProducts();
   };
 
-  /* =======================
-     CART LOGIC (LOCAL)
-  ======================= */
-  const handleAddToCart = (productId: string) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
-    const newCart: LocalCart = { ...cart, items: [...cart.items] };
-    const existingItem = newCart.items.find((item) => item.productId === productId);
-
-    if (existingItem) {
-      existingItem.quantity += 1;
-      existingItem.subtotal = existingItem.quantity * existingItem.price;
-    } else {
-      newCart.items.push({
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-        subtotal: product.price
-      });
-    }
-
-    // Recalculate totals
-    newCart.totalQuantity = newCart.items.reduce((sum, item) => sum + item.quantity, 0);
-    newCart.totalItems = newCart.items.length;
-    newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
-
-    saveCart(newCart);
-    toast.success("Product added to cart");
-    setIsCartOpen(true);
-  };
-
-  const handleIncrementDecrement = (productId: string, increment: boolean) => {
-    const newCart: LocalCart = { ...cart, items: [...cart.items] };
-    const item = newCart.items.find((item) => item.productId === productId);
-    if (!item) return;
-
-    if (increment) {
-      item.quantity += 1;
-    } else {
-      item.quantity = Math.max(0, item.quantity - 1);
-    }
-
-    if (item.quantity === 0) {
-      newCart.items = newCart.items.filter((i) => i.productId !== productId);
-    } else {
-      item.subtotal = item.quantity * item.price;
-    }
-
-    newCart.totalQuantity = newCart.items.reduce((sum, item) => sum + item.quantity, 0);
-    newCart.totalItems = newCart.items.length;
-    newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
-
-    saveCart(newCart);
-  };
-
-  const handleSetQuantity = (productId: string, newQuantity: number) => {
-    const newCart: LocalCart = { ...cart, items: [...cart.items] };
-    const item = newCart.items.find((item) => item.productId === productId);
-    if (!item) return;
-
-    if (newQuantity <= 0) {
-      newCart.items = newCart.items.filter((i) => i.productId !== productId);
-    } else {
-      item.quantity = newQuantity;
-      item.subtotal = item.quantity * item.price;
-    }
-
-    newCart.totalQuantity = newCart.items.reduce((sum, item) => sum + item.quantity, 0);
-    newCart.totalItems = newCart.items.length;
-    newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
-
-    saveCart(newCart);
-    toast.success("Quantity updated");
-  };
-
-  const handleRemoveItem = (productId: string) => {
-    const newCart: LocalCart = { ...cart, items: cart.items.filter((item) => item.productId !== productId) };
-    
-    newCart.totalQuantity = newCart.items.reduce((sum, item) => sum + item.quantity, 0);
-    newCart.totalItems = newCart.items.length;
-    newCart.totalAmount = newCart.items.reduce((sum, item) => sum + item.subtotal, 0);
-
-    saveCart(newCart);
-    toast.success("Product removed from cart");
-  };
-
-  const handleClearCart = () => {
-    const newCart = { items: [], totalItems: 0, totalAmount: 0, totalQuantity: 0 };
-    saveCart(newCart);
-    toast.success("Cart cleared");
-  };
-
-  const handleCheckout = () => {
-    // Navigate to POS or handle checkout logic
-    toast.info("Please use the POS system to complete checkout");
-    navigate("/pos");
-  };
-
-  const handleQuantityDoubleClick = (productId: string, currentQuantity: number) => {
-    setEditingQuantity(productId);
-    setTempQuantity(currentQuantity.toString());
-  };
-
-  const handleQuantityKeyDown = (e: React.KeyboardEvent, productId: string) => {
-    if (e.key === "Enter") {
-      const newQuantity = parseInt(tempQuantity);
-      if (!isNaN(newQuantity) && newQuantity > 0) {
-        handleSetQuantity(productId, newQuantity);
-      }
-      setEditingQuantity(null);
-      setTempQuantity("");
-    } else if (e.key === "Escape") {
-      setEditingQuantity(null);
-      setTempQuantity("");
-    }
-  };
-
-  /* =======================
-     FILTER
-  ======================= */
-  const filteredProducts = products.filter((p) => {
+  const filteredProducts = products.filter((product) => {
     const matchSearch =
-      p.name.toLowerCase().includes(searchInput.toLowerCase()) ||
-      p.barcode.includes(searchInput);
-    const matchCategory =
-      !selectedCategory || p.categoryId === selectedCategory;
+      product.name.toLowerCase().includes(searchInput.toLowerCase()) ||
+      product.barcode.includes(searchInput);
+    const matchCategory = !selectedCategory || product.categoryId === selectedCategory;
     const matchPrice =
-      (!minPrice || p.price >= Number(minPrice)) &&
-      (!maxPrice || p.price <= Number(maxPrice));
+      (!minPrice || product.price >= Number(minPrice)) &&
+      (!maxPrice || product.price <= Number(maxPrice));
+
     return matchSearch && matchCategory && matchPrice;
   });
-
-  // Get product details by ID
-  const getProductById = (productId: string) => {
-    return products.find(p => p.id === productId);
-  };
 
   return (
     <div className="min-h-screen bg-muted/30">
       <Navigation />
 
       <div className="max-w-7xl mx-auto px-6 pt-32 pb-20 animate-fade-in">
-        {/* HEADER & SEARCH */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
-            <h1 className="text-4xl font-bold text-primary mb-2">Our Products</h1>
-            <p className="text-muted-foreground">Quality items for your everyday needs</p>
+            <h1 className="text-4xl font-bold text-primary mb-2">Products</h1>
+            <p className="text-muted-foreground">Browse product information, stock status, and prices</p>
           </div>
 
           <div className="flex gap-4 flex-1 max-w-xl">
@@ -287,7 +95,7 @@ export function ProductsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
               <input
                 type="text"
-                placeholder="Search for products..."
+                placeholder="Search products by name or barcode..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all shadow-sm"
@@ -298,15 +106,15 @@ export function ProductsPage() {
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowFilters(!showFilters)}
               className={`p-3 rounded-xl border border-border transition-all ${
-                showFilters ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                showFilters ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
               }`}
+              title="Toggle filters"
             >
               <SlidersHorizontal size={20} />
             </motion.button>
           </div>
         </div>
 
-        {/* FILTERS */}
         <AnimatePresence>
           {showFilters && (
             <motion.div
@@ -324,8 +132,10 @@ export function ProductsPage() {
                     className="w-full p-3 bg-muted/30 border border-border rounded-xl outline-none focus:border-primary transition-all cursor-pointer"
                   >
                     <option value="">All Categories</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -354,12 +164,7 @@ export function ProductsPage() {
 
                 <div className="flex items-end">
                   <button
-                    onClick={() => {
-                      setSearchInput("");
-                      setSelectedCategory("");
-                      setMinPrice("");
-                      setMaxPrice("");
-                    }}
+                    onClick={resetFilters}
                     className="w-full py-3 text-primary font-bold hover:underline transition-all"
                   >
                     Reset Filters
@@ -370,18 +175,16 @@ export function ProductsPage() {
           )}
         </AnimatePresence>
 
-        {/* PRODUCT GRID */}
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {filteredProducts.map((product) => (
-            <motion.div
+            <motion.button
               key={product.id}
               layout
+              type="button"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               whileHover={{ y: -8 }}
-              className="group bg-background rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer"
+              className="group bg-background rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl transition-all text-left"
               onClick={() => setSelectedProduct(product)}
             >
               <div className="aspect-[4/5] overflow-hidden relative">
@@ -395,6 +198,17 @@ export function ProductsPage() {
                     {product.categoryName}
                   </span>
                 </div>
+                <div className="absolute top-3 right-3">
+                  <span
+                    className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                      product.quantity > 0
+                        ? "bg-green-100/95 text-green-700 border-green-200"
+                        : "bg-destructive/10 text-destructive border-destructive/20"
+                    }`}
+                  >
+                    {product.quantity > 0 ? "In stock" : "Out of stock"}
+                  </span>
+                </div>
               </div>
 
               <div className="p-6">
@@ -404,24 +218,16 @@ export function ProductsPage() {
                 <p className="text-muted-foreground text-xs mb-4 uppercase tracking-tighter">
                   {product.barcode}
                 </p>
-                <div className="flex items-center justify-between mt-auto">
+                <div className="flex items-end justify-between gap-4">
                   <span className="text-xl font-bold text-primary">
                     {product.price.toLocaleString()} VND
                   </span>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="p-3 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddToCart(product.id);
-                    }}
-                  >
-                    <Plus size={20} />
-                  </motion.button>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Stock: {product.quantity}
+                  </span>
                 </div>
               </div>
-            </motion.div>
+            </motion.button>
           ))}
         </div>
 
@@ -436,7 +242,6 @@ export function ProductsPage() {
         )}
       </div>
 
-      {/* PRODUCT DETAIL MODAL */}
       <AnimatePresence>
         {selectedProduct && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -469,7 +274,7 @@ export function ProductsPage() {
                   />
                 </div>
                 <div className="md:w-1/2 p-10 flex flex-col">
-                  <div className="mb-auto">
+                  <div>
                     <span className="px-3 py-1 bg-primary/5 text-primary rounded-full text-xs font-bold uppercase tracking-widest border border-primary/10">
                       {selectedProduct.categoryName}
                     </span>
@@ -479,7 +284,7 @@ export function ProductsPage() {
                     <p className="text-muted-foreground font-mono text-sm mb-8">
                       {selectedProduct.barcode}
                     </p>
-                    
+
                     <div className="space-y-6">
                       <div className="flex items-center justify-between py-4 border-y border-border">
                         <span className="text-muted-foreground">Price per unit</span>
@@ -489,184 +294,22 @@ export function ProductsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Stock Status</span>
-                        <span className={`font-bold ${selectedProduct.quantity > 0 ? 'text-green-600' : 'text-destructive'}`}>
-                          {selectedProduct.quantity > 0 ? `${selectedProduct.quantity} items available` : 'Out of stock'}
+                        <span className={`font-bold ${selectedProduct.quantity > 0 ? "text-green-600" : "text-destructive"}`}>
+                          {selectedProduct.quantity > 0 ? `${selectedProduct.quantity} items available` : "Out of stock"}
                         </span>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-12 flex gap-4">
-                    <button
-                      disabled={selectedProduct.quantity <= 0}
-                      onClick={() => handleAddToCart(selectedProduct.id)}
-                      className="flex-1 py-5 bg-primary text-primary-foreground rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all disabled:opacity-50"
-                    >
-                      Add to Shopping Cart
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* FLOATING CART BUTTON */}
-      <motion.button
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={() => setIsCartOpen(true)}
-        className="fixed bottom-8 right-8 z-40 bg-primary text-primary-foreground rounded-full p-5 shadow-2xl shadow-primary/40 cursor-pointer"
-      >
-        <div className="relative">
-          <ShoppingCart className="w-7 h-7" />
-          {cart && cart.totalItems > 0 && (
-            <motion.span 
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="absolute -top-3 -right-3 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-6 h-6 flex items-center justify-center ring-2 ring-background"
-            >
-              {cart.totalItems}
-            </motion.span>
-          )}
-        </div>
-      </motion.button>
-
-      {/* CART SIDEBAR */}
-      <AnimatePresence>
-        {isCartOpen && (
-          <div className="fixed inset-0 z-[100]">
-            <motion.div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsCartOpen(false)}
-            />
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="absolute right-0 top-0 h-full w-full max-w-md bg-background shadow-2xl flex flex-col border-l border-border"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* CART HEADER */}
-              <div className="flex justify-between items-center p-8 border-b border-border bg-muted/10">
-                <h2 className="text-2xl font-bold text-primary flex items-center gap-3">
-                  <ShoppingCart size={24} />
-                  My Cart
-                </h2>
-                <button 
-                  onClick={() => setIsCartOpen(false)}
-                  className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-primary"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              {/* CART ITEMS */}
-              <div className="flex-1 overflow-y-auto p-8 space-y-6">
-                {cart && cart.items && cart.items.length > 0 ? (
-                  cart.items.map((item) => {
-                    const product = getProductById(item.productId);
-                    return (
-                      <div key={item.productId} className="flex gap-4 p-4 bg-muted/20 rounded-2xl border border-border group hover:border-primary/20 transition-all">
-                        {product && (
-                          <div className="w-24 h-24 bg-background rounded-xl overflow-hidden border border-border flex-shrink-0">
-                            <ImageWithFallback
-                              src={getProductImage(product)}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-
-                        <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
-                          <div>
-                            <p className="font-bold text-primary truncate text-lg">
-                              {product?.name || "Product"}
-                            </p>
-                            <p className="text-sm text-muted-foreground font-medium">
-                              {item.price.toLocaleString()} VND
-                            </p>
-                          </div>
-
-                          <div className="flex items-center justify-between mt-4">
-                            <div className="flex items-center gap-3 bg-background border border-border rounded-lg p-1">
-                              <button 
-                                onClick={() => handleIncrementDecrement(item.productId, false)}
-                                className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center transition-colors text-primary"
-                              >
-                                <Minus size={14} />
-                              </button>
-                              
-                              <span className="w-8 text-center font-bold text-sm">
-                                {item.quantity}
-                              </span>
-                              
-                              <button 
-                                onClick={() => handleIncrementDecrement(item.productId, true)}
-                                className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center transition-colors text-primary"
-                              >
-                                <Plus size={14} />
-                              </button>
-                            </div>
-
-                            <button 
-                              onClick={() => handleRemoveItem(item.productId)}
-                              className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Unit</span>
+                        <span className="font-bold text-primary">{selectedProduct.unit || "N/A"}</span>
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-10">
-                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
-                      <ShoppingCart size={32} className="opacity-20" />
-                    </div>
-                    <p className="text-lg font-medium">Your cart is empty</p>
-                    <button 
-                      onClick={() => setIsCartOpen(false)}
-                      className="mt-4 text-primary font-bold hover:underline"
-                    >
-                      Continue Shopping
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* CART FOOTER */}
-              {cart && cart.items && cart.items.length > 0 && (
-                <div className="border-t border-border p-8 space-y-6 bg-muted/10">
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Total Items</span>
-                      <span className="font-bold text-primary">{cart.totalQuantity}</span>
-                    </div>
-                    <div className="flex justify-between text-2xl font-bold pt-4 border-t border-border">
-                      <span className="text-primary">Total</span>
-                      <span className="text-primary">{cart.totalAmount.toLocaleString()} VND</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Status</span>
+                        <span className="font-bold text-primary">{selectedProduct.status}</span>
+                      </div>
                     </div>
                   </div>
-
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleCheckout}
-                    className="w-full py-5 bg-primary text-primary-foreground rounded-2xl font-bold text-xl shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all"
-                  >
-                    Proceed to Checkout
-                  </motion.button>
                 </div>
-              )}
+              </div>
             </motion.div>
           </div>
         )}
