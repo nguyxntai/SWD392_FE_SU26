@@ -16,6 +16,7 @@ import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { Navigation } from '../../components/Navigation';
 import * as productService from '../../services/productService';
 import * as categoryService from '../../services/categoryService';
+import { uploadProductImage } from '../../services/cloudinaryService';
 import { Category } from '../../types/category';
 import { Product } from '../../types/products';
 import { toast } from 'sonner';
@@ -42,6 +43,9 @@ export function AdminProductManagement() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] =
     useState<Product | null>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -115,6 +119,8 @@ export function AdminProductManagement() {
   ====================== */
   const openCreateModal = () => {
     setEditingProduct(null);
+    setSelectedImageFile(null);
+    setImagePreviewUrl('');
     setFormData({
       name: '',
       barcode: '',
@@ -132,6 +138,8 @@ export function AdminProductManagement() {
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
+    setSelectedImageFile(null);
+    setImagePreviewUrl(product.imageUrl || '');
     setFormData({
       name: product.name,
       barcode: product.barcode,
@@ -150,6 +158,28 @@ export function AdminProductManagement() {
   const closeFormModal = () => {
     setIsFormModalOpen(false);
     setEditingProduct(null);
+    setSelectedImageFile(null);
+    setImagePreviewUrl('');
+    setIsUploadingImage(false);
+  };
+
+  const handleImageFileChange = (file?: File) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file');
+      return;
+    }
+
+    setSelectedImageFile(file);
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreviewUrl(previewUrl);
+  };
+
+  const removeImage = () => {
+    setSelectedImageFile(null);
+    setImagePreviewUrl('');
+    setFormData({ ...formData, imageUrl: '' });
   };
 
   /* =====================
@@ -162,6 +192,14 @@ export function AdminProductManagement() {
     }
 
     try {
+      let nextImageUrl = formData.imageUrl;
+
+      if (selectedImageFile) {
+        setIsUploadingImage(true);
+        nextImageUrl = await uploadProductImage(selectedImageFile);
+        setFormData((current) => ({ ...current, imageUrl: nextImageUrl }));
+      }
+
       if (editingProduct) {
         // UPDATE PRODUCT
         const updateData = {
@@ -171,7 +209,7 @@ export function AdminProductManagement() {
           price: formData.price,
           costPrice: formData.costPrice,
           unit: formData.unit,
-          imageUrl: formData.imageUrl,
+          imageUrl: nextImageUrl,
           active: formData.active,
           minStockLevel: formData.minStockLevel,
         };
@@ -187,7 +225,7 @@ export function AdminProductManagement() {
           price: formData.price,
           costPrice: formData.costPrice,
           unit: formData.unit,
-          imageUrl: formData.imageUrl,
+          imageUrl: nextImageUrl,
           initialQuantity: formData.initialQuantity,
           minStockLevel: formData.minStockLevel,
         };
@@ -199,7 +237,9 @@ export function AdminProductManagement() {
       closeFormModal();
     } catch (error: any) {
       console.error('Error saving product:', error);
-      toast.error(error.response?.data?.message || 'Could not save product');
+      toast.error(error.response?.data?.message || error.message || 'Could not save product');
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -268,6 +308,16 @@ export function AdminProductManagement() {
                 }`}
               >
                 Inventory
+              </button>
+              <button
+                onClick={() => navigate('/admin/reports')}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all ${
+                  location.pathname === '/admin/reports'
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                Reports
               </button>
             </div>
 
@@ -514,14 +564,63 @@ export function AdminProductManagement() {
                     />
                   </div>
                   <div className="col-span-full space-y-2">
-                    <label className="text-sm font-bold text-primary uppercase tracking-wider">Image URL</label>
-                    <input
-                      type="text"
-                      value={formData.imageUrl}
-                      onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                      placeholder="https://example.com/image.png"
-                      className="w-full p-3 bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                    />
+                    <label className="text-sm font-bold text-primary uppercase tracking-wider">Product Image</label>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-[160px_1fr]">
+                      <div className="aspect-square overflow-hidden rounded-2xl border border-border bg-muted/30">
+                        {imagePreviewUrl || formData.imageUrl ? (
+                          <ImageWithFallback
+                            src={imagePreviewUrl || formData.imageUrl}
+                            alt="Product preview"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                            <Upload size={28} />
+                            <span className="text-xs font-medium">No image</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-4 font-semibold text-primary transition-colors hover:bg-primary/5">
+                          <Upload size={18} />
+                          <span>{selectedImageFile ? 'Change Image' : 'Choose Image'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleImageFileChange(e.target.files?.[0])}
+                          />
+                        </label>
+
+                        <input
+                          type="text"
+                          value={formData.imageUrl}
+                          onChange={(e) => {
+                            setFormData({ ...formData, imageUrl: e.target.value });
+                            if (!selectedImageFile) {
+                              setImagePreviewUrl(e.target.value);
+                            }
+                          }}
+                          placeholder="Or paste image URL"
+                          className="w-full rounded-xl border border-border bg-muted/30 p-3 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        />
+
+                        {(imagePreviewUrl || formData.imageUrl || selectedImageFile) && (
+                          <button
+                            type="button"
+                            onClick={removeImage}
+                            className="rounded-xl border border-border px-4 py-2 text-sm font-bold text-destructive transition-colors hover:bg-destructive/10"
+                          >
+                            Remove Image
+                          </button>
+                        )}
+
+                        <p className="text-xs text-muted-foreground">
+                          New files upload to Cloudinary first; the saved product only stores the image URL.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -550,9 +649,10 @@ export function AdminProductManagement() {
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 shadow-lg shadow-primary/10 transition-all"
+                  disabled={isUploadingImage}
+                  className="flex-1 py-4 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 shadow-lg shadow-primary/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingProduct ? 'Update Product' : 'Create Product'}
+                  {isUploadingImage ? 'Uploading Image...' : editingProduct ? 'Update Product' : 'Create Product'}
                 </button>
               </div>
             </motion.div>

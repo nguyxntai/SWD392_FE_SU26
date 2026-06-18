@@ -1,5 +1,5 @@
 import { Order } from "@/types/order";
-import { formatDateTime, formatVnd } from "@/utils/format";
+import { formatDateTime, formatVnd, getOrderItemUnitPrice } from "@/utils/format";
 
 interface ReceiptProps {
   order: Order;
@@ -35,6 +35,12 @@ export function Receipt({ order }: ReceiptProps) {
           <span>Cashier:</span>
           <span>{order.cashierName || "N/A"}</span>
         </div>
+        {order.membershipLevel && (
+          <div className="flex justify-between">
+            <span>Member:</span>
+            <span>{order.membershipLevel}</span>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-dashed border-black my-2"></div>
@@ -54,7 +60,7 @@ export function Receipt({ order }: ReceiptProps) {
                 {item.productName}
               </td>
               <td className="text-right py-1">{item.quantity}</td>
-              <td className="text-right py-1">{formatVnd(item.price)}</td>
+              <td className="text-right py-1">{formatVnd(getOrderItemUnitPrice(item))}</td>
             </tr>
           ))}
         </tbody>
@@ -68,7 +74,11 @@ export function Receipt({ order }: ReceiptProps) {
           <span>{formatVnd(order.totalAmount)}</span>
         </div>
         <div className="flex justify-between">
-          <span>Discount:</span>
+          <span>Member Discount:</span>
+          <span>-{formatVnd(order.membershipDiscountAmount)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Total Discount:</span>
           <span>-{formatVnd(order.discountAmount)}</span>
         </div>
         <div className="flex justify-between font-bold text-[13px] pt-1">

@@ -1,5 +1,4 @@
 export interface CheckoutItem {
-  productId: string;
   barcode: string;
   quantity: number;
 }
@@ -8,7 +7,6 @@ export interface CheckoutPayload {
   customerPhone?: string;
   paymentMethod: "CASH" | "BANK_TRANSFER" | "EWALLET";
   amountReceived: number;
-  discountAmount: number;
   items: CheckoutItem[];
 }
 

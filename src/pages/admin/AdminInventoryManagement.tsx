@@ -17,7 +17,7 @@ import * as inventoryService from '../../services/inventoryService';
 import { InventoryItem, InventoryTransaction, Supplier } from '../../services/inventoryService';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatDateTime, formatVnd } from '../../utils/format';
+import { formatDateTime, formatVnd, getOrderItemUnitPrice } from '../../utils/format';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getProductById } from '../../services/productService';
 import { getOrderById } from '../../services/orderService';
@@ -150,7 +150,7 @@ export function AdminInventoryManagement() {
 
   const loadSaleUnitPrices = async (nextTransactions: InventoryTransaction[]) => {
     const saleTransactions = nextTransactions.filter(
-      (tx) => tx.type === 'SALE' && tx.referenceType === 'ORDER' && tx.referenceId
+      (tx) => tx.type === 'SALE' && tx.referenceId
     );
 
     if (saleTransactions.length === 0) {
@@ -166,20 +166,25 @@ export function AdminInventoryManagement() {
       const nextPrices: Record<string, number> = {};
 
       saleTransactions.forEach((tx) => {
-        if (typeof tx.unitPrice === 'number') {
-          nextPrices[tx.id] = tx.unitPrice;
+        const transactionUnitPrice = tx.unitPrice ?? tx.unit_price;
+        if (typeof transactionUnitPrice === 'number') {
+          nextPrices[tx.id] = transactionUnitPrice;
           return;
         }
 
         const order = orderById.get(tx.referenceId);
         const matchedItem = order?.items.find((item) =>
           item.id === tx.productId ||
-          item.barcode === tx.barcode ||
+          item.productId === tx.productId ||
+          (Boolean(item.barcode) && item.barcode === tx.barcode) ||
           item.productName === tx.productName
         ) || (order?.items.length === 1 ? order.items[0] : undefined);
 
-        if (typeof matchedItem?.price === 'number') {
-          nextPrices[tx.id] = matchedItem.price;
+        if (matchedItem) {
+          const unitPrice = getOrderItemUnitPrice(matchedItem);
+          if (typeof unitPrice === 'number') {
+            nextPrices[tx.id] = unitPrice;
+          }
         }
       });
 
@@ -356,6 +361,16 @@ export function AdminInventoryManagement() {
               }`}
             >
               Inventory
+            </button>
+            <button
+              onClick={() => navigate('/admin/reports')}
+              className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all ${
+                location.pathname === '/admin/reports'
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              Reports
             </button>
           </div>
         </div>
@@ -557,9 +572,9 @@ export function AdminInventoryManagement() {
                             </td>
                             <td className="px-6 py-4 text-right font-medium text-primary">
                               {isImport
-                                ? formatVnd(tx.unitCost ?? importUnitCosts[tx.id])
+                                ? formatVnd(tx.unitCost ?? tx.unit_cost ?? importUnitCosts[tx.id])
                                 : isSale
-                                  ? formatVnd(tx.unitPrice ?? saleUnitPrices[tx.id])
+                                  ? formatVnd(tx.unitPrice ?? tx.unit_price ?? saleUnitPrices[tx.id])
                                   : 'N/A'}
                             </td>
                             <td className="px-6 py-4 text-sm text-muted-foreground">

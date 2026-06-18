@@ -186,6 +186,16 @@ export function AdminCategoryManagement() {
               >
                 Inventory
               </button>
+              <button
+                onClick={() => navigate("/admin/reports")}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-all ${
+                  location.pathname === "/admin/reports"
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                Reports
+              </button>
             </div>
 
             <motion.button

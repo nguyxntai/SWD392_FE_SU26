@@ -20,7 +20,9 @@ export interface InventoryTransaction {
   beforeQuantity: number;
   afterQuantity: number;
   unitCost?: number;
+  unit_cost?: number;
   unitPrice?: number;
+  unit_price?: number;
   referenceType: string;
   referenceId: string;
   createdAt: string;

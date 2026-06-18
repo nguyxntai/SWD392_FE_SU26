@@ -6,7 +6,10 @@ import { getProductByBarcode } from "@/services/productService";
 import { checkout, initiatePayOS } from "@/services/checkoutService";
 import { getOrderById } from "@/services/orderService";
 import { getApiErrorMessage } from "@/services/apiError";
+import { createCustomer, getCustomerByPhone } from "@/services/customerService";
+import { CustomerByPhone } from "@/types/customer";
 import { Product } from "@/types/products";
+import { formatVnd } from "@/utils/format";
 
 type CartItem = {
   productId: string;
@@ -25,9 +28,18 @@ export default function POSCheckout() {
   const [barcode, setBarcode] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customer, setCustomer] = useState<CustomerByPhone | null>(null);
+  const [isLoadingCustomer, setIsLoadingCustomer] = useState(false);
+  const [customerLookupAttempted, setCustomerLookupAttempted] = useState(false);
+  const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    fullName: "",
+    phone: "",
+    email: "",
+  });
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "BANK_TRANSFER" | "EWALLET">("CASH");
   const [amountReceived, setAmountReceived] = useState(0);
-  const [discountAmount, setDiscountAmount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [payOSLink, setPayOSLink] = useState<string | null>(null);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
@@ -43,8 +55,10 @@ export default function POSCheckout() {
   }, []);
 
   const totalAmount = cart.reduce((sum, item) => sum + item.subtotal, 0);
-  const finalAmount = totalAmount - discountAmount;
-  const changeAmount = amountReceived > finalAmount ? amountReceived - finalAmount : 0;
+  const membershipDiscountRate = customer?.membershipDiscountRate ?? customer?.discountRate ?? 0;
+  const membershipDiscountPreview = totalAmount * membershipDiscountRate;
+  const estimatedFinalAmount = Math.max(0, totalAmount - membershipDiscountPreview);
+  const changeAmount = amountReceived > estimatedFinalAmount ? amountReceived - estimatedFinalAmount : 0;
 
   const scanBarcodeToCart = async () => {
     const scannedBarcode = barcodeInputRef.current?.value.trim() || barcode.trim();
@@ -96,6 +110,61 @@ export default function POSCheckout() {
       setSearchProduct(null);
     } finally {
       setIsSearchingProduct(false);
+    }
+  };
+
+  const lookupCustomer = async () => {
+    const phone = customerPhone.trim();
+    if (!phone || isLoadingCustomer) return;
+
+    setIsLoadingCustomer(true);
+    try {
+      const result = await getCustomerByPhone(phone);
+      setCustomer(result);
+      setCustomerLookupAttempted(true);
+      toast.success("Customer loaded");
+    } catch (error) {
+      setCustomer(null);
+      setCustomerLookupAttempted(true);
+      toast.error(getApiErrorMessage(error, "Customer not found"));
+    } finally {
+      setIsLoadingCustomer(false);
+    }
+  };
+
+  const openCreateCustomer = () => {
+    setNewCustomer({
+      fullName: "",
+      phone: customerPhone.trim(),
+      email: "",
+    });
+    setIsCreateCustomerOpen(true);
+  };
+
+  const handleCreateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fullName = newCustomer.fullName.trim();
+    const phone = newCustomer.phone.trim();
+    const email = newCustomer.email.trim();
+
+    if (!fullName || !phone || isCreatingCustomer) return;
+
+    setIsCreatingCustomer(true);
+    try {
+      const createdCustomer = await createCustomer({
+        fullName,
+        phone,
+        ...(email ? { email } : {}),
+      });
+      setCustomer(createdCustomer);
+      setCustomerPhone(createdCustomer.phone);
+      setCustomerLookupAttempted(true);
+      setIsCreateCustomerOpen(false);
+      toast.success("Customer created");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Create customer failed"));
+    } finally {
+      setIsCreatingCustomer(false);
     }
   };
 
@@ -156,12 +225,10 @@ export default function POSCheckout() {
 
     setLoading(true);
     const payload = {
-      customerPhone,
+      customerPhone: customerPhone.trim() || undefined,
       paymentMethod,
       amountReceived,
-      discountAmount,
       items: cart.map((item) => ({
-        productId: item.productId,
         barcode: item.barcode,
         quantity: item.quantity,
       })),
@@ -211,8 +278,10 @@ export default function POSCheckout() {
   const clearCart = () => {
     setCart([]);
     setCustomerPhone("");
+    setCustomer(null);
+    setCustomerLookupAttempted(false);
+    setIsCreateCustomerOpen(false);
     setAmountReceived(0);
-    setDiscountAmount(0);
     setPayOSLink(null);
     setCurrentOrderId(null);
   };
@@ -410,32 +479,84 @@ export default function POSCheckout() {
             
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground font-medium">Customer Phone (Optional)</label>
-              <input
-                type="text"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="0912..."
-                className="w-full p-3 border border-border bg-background rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customerPhone}
+                  onChange={(e) => {
+                    setCustomerPhone(e.target.value);
+                    setCustomer(null);
+                    setCustomerLookupAttempted(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      lookupCustomer();
+                    }
+                  }}
+                  placeholder="0912..."
+                  className="min-w-0 flex-1 p-3 border border-border bg-background rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={lookupCustomer}
+                  disabled={!customerPhone.trim() || isLoadingCustomer}
+                  className="px-4 rounded-xl border border-border font-semibold text-primary hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoadingCustomer ? "..." : "Lookup"}
+                </button>
+              </div>
+              {customer && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm space-y-2">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Name</span>
+                    <span className="font-semibold text-right">{customer.fullName || customer.name || "Member"}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Points</span>
+                    <span className="font-semibold">{customer.totalPoints ?? customer.points ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Membership</span>
+                    <span className="font-semibold">{customer.membershipLevel || "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Discount Rate</span>
+                    <span className="font-semibold">
+                      {((customer.membershipDiscountRate ?? customer.discountRate ?? 0) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+              {!customer && customerLookupAttempted && customerPhone.trim() && (
+                <div className="rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-sm space-y-3">
+                  <div>
+                    <p className="font-semibold text-amber-700">Customer not found</p>
+                    <p className="text-muted-foreground">Create a loyalty customer for this phone number.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openCreateCustomer}
+                    className="w-full rounded-xl bg-primary px-4 py-2 font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    Create Loyalty Customer
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="pt-4 border-t border-border space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total Amount</span>
-                <span className="font-medium">{totalAmount.toLocaleString()} VND</span>
+                <span className="font-medium">{formatVnd(totalAmount)}</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Discount</span>
-                <input
-                  type="number"
-                  value={discountAmount}
-                  onChange={(e) => setDiscountAmount(Number(e.target.value))}
-                  className="w-24 text-right p-1 border border-border rounded bg-background focus:border-primary outline-none"
-                />
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Member Discount Preview</span>
+                <span className="font-medium">-{formatVnd(membershipDiscountPreview)}</span>
               </div>
               <div className="flex justify-between font-bold text-xl pt-4 border-t border-border text-primary">
-                <span>Final Amount</span>
-                <span>{finalAmount.toLocaleString()} VND</span>
+                <span>Estimated Final</span>
+                <span>{formatVnd(estimatedFinalAmount)}</span>
               </div>
             </div>
 
@@ -518,6 +639,77 @@ export default function POSCheckout() {
           </button>
         </div>
       </div>
+
+      {isCreateCustomerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+          <form
+            onSubmit={handleCreateCustomer}
+            className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl space-y-5"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold">Create Loyalty Customer</h2>
+                <p className="text-sm text-muted-foreground">Customer profile for POS membership points.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateCustomerOpen(false)}
+                className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+              <input
+                type="text"
+                value={newCustomer.fullName}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, fullName: e.target.value }))}
+                className="w-full rounded-xl border border-border bg-background p-3 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Phone</label>
+              <input
+                type="text"
+                value={newCustomer.phone}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, phone: e.target.value }))}
+                className="w-full rounded-xl border border-border bg-background p-3 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Email Optional</label>
+              <input
+                type="email"
+                value={newCustomer.email}
+                onChange={(e) => setNewCustomer((prev) => ({ ...prev, email: e.target.value }))}
+                className="w-full rounded-xl border border-border bg-background p-3 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCreateCustomerOpen(false)}
+                className="flex-1 rounded-xl border border-border px-4 py-3 font-bold hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!newCustomer.fullName.trim() || !newCustomer.phone.trim() || isCreatingCustomer}
+                className="flex-1 rounded-xl bg-primary px-4 py-3 font-bold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isCreatingCustomer ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

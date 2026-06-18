@@ -7,7 +7,7 @@ import { getPayOSReturnResult } from "@/services/checkoutService";
 import { getOrderById } from "@/services/orderService";
 import { PayOSReturnResponse } from "@/types/checkout";
 import { Order } from "@/types/order";
-import { formatDateTime, formatVnd } from "@/utils/format";
+import { formatDateTime, formatVnd, getOrderItemUnitPrice } from "@/utils/format";
 import { Receipt } from "@/components/pos/Receipt";
 
 const PAYOS_PENDING_ORDER_KEY = "posPendingPayOSOrderId";
@@ -272,6 +272,18 @@ export default function PaymentReturn() {
                   <p className="text-muted-foreground">Status</p>
                   <p className={`font-semibold ${isSuccess ? "text-green-600" : "text-amber-600"}`}>{order.status}</p>
                 </div>
+                <div>
+                  <p className="text-muted-foreground">Membership</p>
+                  <p className="font-semibold">{order.membershipLevel || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Member Discount</p>
+                  <p className="font-semibold">
+                    {typeof order.membershipDiscountRate === "number"
+                      ? `${(order.membershipDiscountRate * 100).toFixed(1)}%`
+                      : "N/A"}
+                  </p>
+                </div>
               </div>
 
               <table className="w-full text-sm">
@@ -291,7 +303,7 @@ export default function PaymentReturn() {
                         <p className="font-mono text-xs text-muted-foreground">{item.barcode}</p>
                       </td>
                       <td className="py-3 text-right">{item.quantity}</td>
-                      <td className="py-3 text-right">{formatVnd(item.price)}</td>
+                      <td className="py-3 text-right">{formatVnd(getOrderItemUnitPrice(item))}</td>
                       <td className="py-3 text-right font-semibold">{formatVnd(item.subtotal)}</td>
                     </tr>
                   ))}
@@ -304,7 +316,11 @@ export default function PaymentReturn() {
                   <span className="font-medium">{formatVnd(order.totalAmount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Discount</span>
+                  <span className="text-muted-foreground">Membership Discount</span>
+                  <span className="font-medium">{formatVnd(order.membershipDiscountAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Discount</span>
                   <span className="font-medium">{formatVnd(order.discountAmount)}</span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-3 text-lg font-bold text-primary">
