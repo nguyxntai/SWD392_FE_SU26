@@ -12,8 +12,11 @@ import { AdminCategoryManagement } from "./pages/admin/AdminCategoryManagement";
 import { AdminInventoryManagement } from "./pages/admin/AdminInventoryManagement";
 import { AdminReportsDashboard } from "./pages/admin/AdminReportsDashboard";
 import { ProtectedAdminRoute } from "./routes/ProtectedAdminRoute";
+import { ProtectedEmployeeRoute } from "./routes/ProtectedEmployeeRoute";
 import { Toaster } from "./components/ui/sonner";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
+import { AiChatPage } from "./pages/rag/AiChatPage";
+import { RagAdminPage } from "./pages/rag/RagAdminPage";
 
 
 
@@ -33,12 +36,18 @@ export default function App() {
           <Route path="/payment/cancel" element={<PaymentReturn />} />
           <Route path="/orders/:orderId" element={<OrderDetail />} />
 
+          {/* EMPLOYEE PROTECTED (ADMIN, MANAGER, CASHIER) */}
+          <Route element={<ProtectedEmployeeRoute />}>
+            <Route path="/ai-chat" element={<AiChatPage />} />
+          </Route>
+
           {/* ADMIN PROTECTED */}
           <Route element={<ProtectedAdminRoute />}>
             <Route path="/admin/products" element={<AdminProductManagement />} />
             <Route path="/admin/categories" element={<AdminCategoryManagement />} />
             <Route path="/admin/inventory" element={<AdminInventoryManagement />} />
             <Route path="/admin/reports" element={<AdminReportsDashboard />} />
+            <Route path="/rag-admin" element={<RagAdminPage />} />
           </Route>
 
           {/* FALLBACK */}

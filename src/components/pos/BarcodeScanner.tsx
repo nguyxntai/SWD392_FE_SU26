@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
+import { DecodeHintType, BarcodeFormat } from "@zxing/library";
 import { X, Camera, CameraOff } from "lucide-react";
 
 interface BarcodeScannerProps {
@@ -11,7 +12,7 @@ interface BarcodeScannerProps {
 export default function BarcodeScanner({ isOpen, onClose, onDetected }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
-  const controlsRef = useRef<any>(null); // Store the controls object to stop scanning
+  const controlsRef = useRef<IScannerControls | null>(null); // Store the controls object to stop scanning
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -35,7 +36,25 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }: BarcodeS
     try {
       setError(null);
       if (!readerRef.current) {
-        readerRef.current = new BrowserMultiFormatReader();
+        const hints = new Map();
+        const formats = [
+          BarcodeFormat.QR_CODE,
+          BarcodeFormat.DATA_MATRIX,
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.CODE_39,
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.ITF,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+        ];
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+        
+        readerRef.current = new BrowserMultiFormatReader(hints, {
+          delayBetweenScanAttempts: 150,
+          delayBetweenScanSuccess: 2000,
+        });
       }
 
       if (videoRef.current) {
@@ -45,6 +64,9 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }: BarcodeS
             audio: false,
             video: {
               facingMode: "environment", // Use back camera if available
+              width: { ideal: 1280, min: 640 },
+              height: { ideal: 720, min: 480 },
+              advanced: [{ focusMode: "continuous" }] as any,
             },
           },
           videoRef.current,
@@ -72,6 +94,27 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }: BarcodeS
     setIsScanning(false);
   };
 
+  const playBeepSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // 800Hz
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); // Volume
+      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1); // Fade out
+
+      oscillator.start(audioCtx.currentTime);
+      oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) {
+      console.log("AudioContext not supported or blocked");
+    }
+  };
+
   const handleDetected = (barcode: string) => {
     const now = Date.now();
     const isSameBarcode = lastScannedBarcodeRef.current === barcode;
@@ -84,6 +127,7 @@ export default function BarcodeScanner({ isOpen, onClose, onDetected }: BarcodeS
     lastScannedBarcodeRef.current = barcode;
     lastScannedTimeRef.current = now;
 
+    playBeepSound();
     onDetected(barcode);
   };
 
