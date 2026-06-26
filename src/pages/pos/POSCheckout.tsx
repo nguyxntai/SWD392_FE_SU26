@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ShoppingCart, Trash2, CreditCard, Banknote, RefreshCw, X, ArrowLeft, CornerDownLeft } from "lucide-react";
+import { Search, ShoppingCart, Trash2, CreditCard, Banknote, RefreshCw, X, ArrowLeft, CornerDownLeft, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { getProductByBarcode } from "@/services/productService";
 import { checkout, initiatePayOS } from "@/services/checkoutService";
@@ -10,6 +10,7 @@ import { createCustomer, getCustomerByPhone } from "@/services/customerService";
 import { CustomerByPhone } from "@/types/customer";
 import { Product } from "@/types/products";
 import { formatVnd } from "@/utils/format";
+import BarcodeScanner from "@/components/pos/BarcodeScanner";
 
 type CartItem = {
   productId: string;
@@ -47,6 +48,7 @@ export default function POSCheckout() {
   const [searchedProduct, setSearchProduct] = useState<Product | null>(null);
   const [isSearchingProduct, setIsSearchingProduct] = useState(false);
   const [isScanningToCart, setIsScanningToCart] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +61,14 @@ export default function POSCheckout() {
   const membershipDiscountPreview = totalAmount * membershipDiscountRate;
   const estimatedFinalAmount = Math.max(0, totalAmount - membershipDiscountPreview);
   const changeAmount = amountReceived > estimatedFinalAmount ? amountReceived - estimatedFinalAmount : 0;
+
+  const handleScannerDetected = (scannedBarcode: string) => {
+    if (barcodeInputRef.current) {
+      barcodeInputRef.current.value = scannedBarcode;
+    }
+    setBarcode(scannedBarcode);
+    scanBarcodeToCart();
+  };
 
   const scanBarcodeToCart = async () => {
     const scannedBarcode = barcodeInputRef.current?.value.trim() || barcode.trim();
@@ -345,6 +355,14 @@ export default function POSCheckout() {
                   className="pl-10 pr-4 py-2 border border-border bg-background rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                title="Open Camera Scanner"
+              >
+                <Camera size={18} />
+              </button>
               <button
                 type="submit"
                 disabled={isScanningToCart}
@@ -710,6 +728,12 @@ export default function POSCheckout() {
           </form>
         </div>
       )}
+
+      <BarcodeScanner
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onDetected={handleScannerDetected}
+      />
     </div>
   );
 }
