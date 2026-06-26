@@ -65,9 +65,9 @@ export function Navigation() {
         {/* LOGO */}
         <Link to={handleLogoClick()} className="flex items-center gap-2 group">
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground group-hover:scale-110 transition-transform">
-            <span className="text-xl font-black">S</span>
+            <span className="text-xl font-black">P</span>
           </div>
-          <span className="text-2xl font-black tracking-tighter text-primary">STUURDY</span>
+          <span className="text-2xl font-black tracking-tighter text-primary">POSIFY</span>
         </Link>
 
         {/* LINKS */}
