@@ -76,6 +76,7 @@ export function Navigation() {
             { name: "Products", path: "/products", roles: ["ANY"] },
             { name: "POS", path: "/pos", roles: ["ADMIN", "MANAGER", "CASHIER"] },
             { name: "AI Assistant", path: "/ai-chat", roles: ["ADMIN", "MANAGER", "CASHIER"] },
+            { name: "Vision Check", path: "/vision-check", roles: ["ADMIN", "MANAGER", "CASHIER"] },
             { name: "Management", path: "/admin/products", roles: ["ADMIN", "MANAGER"] },
             { name: "RAG Admin", path: "/rag-admin", roles: ["ADMIN", "MANAGER"] },
           ]

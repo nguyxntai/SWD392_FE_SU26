@@ -17,8 +17,7 @@ import { Toaster } from "./components/ui/sonner";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { AiChatPage } from "./pages/rag/AiChatPage";
 import { RagAdminPage } from "./pages/rag/RagAdminPage";
-
-
+import { VisionCheckPage } from "./pages/rag/VisionCheckPage";
 
 export default function App() {
   return (
@@ -39,6 +38,7 @@ export default function App() {
           {/* EMPLOYEE PROTECTED (ADMIN, MANAGER, CASHIER) */}
           <Route element={<ProtectedEmployeeRoute />}>
             <Route path="/ai-chat" element={<AiChatPage />} />
+            <Route path="/vision-check" element={<VisionCheckPage />} />
           </Route>
 
           {/* ADMIN PROTECTED */}

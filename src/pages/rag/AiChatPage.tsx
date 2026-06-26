@@ -16,9 +16,9 @@ interface ChatMessage {
 
 const QUICK_QUESTIONS = [
   "Sản phẩm nào gần hết hàng?",
-  "Sản phẩm nào bán chạy?",
+  "Tôi có 7k nên mua gì?",
+  "Milk và alo cái nào rẻ hơn?",
   "Tồn kho hiện tại thế nào?",
-  "Doanh thu hôm nay ra sao?",
 ];
 
 export function AiChatPage() {

@@ -27,3 +27,25 @@ export interface RagDocument {
 export interface RagReindexResponse {
   documentCount: number;
 }
+
+export interface VisionChatRequest {
+  productId?: string;
+  barcode?: string;
+  imageUrl: string;
+  question: string;
+  context?: {
+    note?: string;
+    [key: string]: any;
+  };
+}
+
+export interface VisionChatResponse {
+  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN";
+  summary: string;
+  observations: string[];
+  possibleCauses: string[];
+  recommendedActions: string[];
+  followUpQuestions: string[];
+  relatedProduct?: any;
+  disclaimer: string;
+}
